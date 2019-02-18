@@ -34,6 +34,9 @@ namespace kml
         std::vector<int> materials;
         std::shared_ptr<SkinWeight> skin_weight;
         std::shared_ptr<MorphTargets> morph_targets;
+
+        // TODO(LTE): Define ObjectAttributes
+        bool double_sided = true;
     };
 } // namespace kml
 

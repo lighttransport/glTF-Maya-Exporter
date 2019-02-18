@@ -1006,6 +1006,9 @@ static std::shared_ptr<kml::Mesh> CreateMesh(const MDagPath& dagPath, const MSpa
     MItMeshPolygon polyIter(dagPath);
     MItMeshVertex vtxIter(dagPath);
 
+    // Per-object attribute
+    bool double_sided = fnMesh.findPlug("doubleSided").asBool();
+
     // Write out the vertex table
     //
     std::vector<glm::vec3> positions;
@@ -1113,6 +1116,7 @@ static std::shared_ptr<kml::Mesh> CreateMesh(const MDagPath& dagPath, const MSpa
     mesh->texcoords.swap(texcoords);
     mesh->normals.swap(normals);
     mesh->materials.swap(materials);
+    mesh->double_sided = double_sided;
     //mesh->name = dagPath.partialPathName().asChar();
 
     return mesh;
@@ -2537,6 +2541,17 @@ static MStatus WriteGLTF(
                 else
                 {
                     std::shared_ptr<kml::Material> mat = ConvertMaterial(shaders[i]);
+
+                    {
+                      // FIXME(LTE): Transfer mesh's doubleSided property to
+                      // material's doubleSided.
+                      // This may give wrong result when a material is shared
+                      // with multiple meshes, whose doubleSided propery
+                      // differs. 
+
+                      mat->SetInteger("doubleSided", node->GetMesh()->double_sided ? 1 : 0);
+                    }
+
                     {
                         auto keys = mat->GetTextureKeys();
                         for (size_t j = 0; j < keys.size(); j++)
