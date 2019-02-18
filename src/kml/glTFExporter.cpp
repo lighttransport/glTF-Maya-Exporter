@@ -2225,8 +2225,8 @@ namespace kml
 
                     pbrMetallicRoughness["metallicFactor"] = picojson::value(mat->GetFloat("metallicFactor"));
                     pbrMetallicRoughness["roughnessFactor"] = picojson::value(mat->GetFloat("roughnessFactor"));
-                    pbrMetallicRoughness["doubleSided"] = picojson::value(bool(mat->GetInteger("doubleSided")));
                     nd["pbrMetallicRoughness"] = picojson::value(pbrMetallicRoughness);
+                    nd["doubleSided"] = picojson::value(bool(mat->GetInteger("doubleSided")));
 
                     // LTE extenstion
                     nd["extensions"] = createLTE_material_extensions(mat, texture_vec);
