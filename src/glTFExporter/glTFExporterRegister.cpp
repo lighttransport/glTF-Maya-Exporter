@@ -15,6 +15,10 @@
 
 #include <kml/Options.h>
 
+#if defined(GLTF_EXPORTER_ENABLE_HOT_RELOAD)
+#include "hotreload/HotReloadExporterPlatform.h"
+#endif
+
 #include "glTFTranslator.h"
 
 #define VENDOR_NAME "Light Transport Entertainment, Inc."
@@ -22,7 +26,6 @@
 #define PLUGIN_VERSION "1.5.4"
 #define EXPOTER_NAME_GLTF "GLTF Export"
 #define EXPOTER_NAME_GLB "GLB Export"
-
 
 const char* const gltfOptionScript = "glTFExporterOptions";
 const char* const gltfDefaultOptions =
@@ -69,6 +72,31 @@ __declspec(dllexport)
 
     ShowLicense();
 
+#if defined(GLTF_EXPORTER_ENABLE_HOT_RELOAD)
+    // NOTE: (yliangsiew) Get the OS-specific path to the plugin
+    MString pluginPath = plugin.loadPath();
+    const char* pluginPathC = pluginPath.asChar();
+    const sizet lenPluginPath = strlen(pluginPathC);
+    char OSPluginPath[kMaxPathLen];
+    strncpy(OSPluginPath, pluginPathC, lenPluginPath + 1);
+    int replaced = convertPathSeparatorsToOSNative(OSPluginPath);
+    if (replaced < 0)
+    {
+        MGlobal::displayError("Failed to format path of plugin to OS native version!");
+        return MStatus::kFailure;
+    }
+    if (strlen(OSPluginPath) <= 0)
+    {
+        MGlobal::displayError("Could not find a path to the plugin!");
+        return MStatus::kFailure;
+    }
+
+    fprintf(stderr, "OSPluginPath [ %s ]\n", OSPluginPath);
+    kPluginLogicLibraryPath = getExporterLogicLibraryPath(OSPluginPath);
+    MGlobal::displayInfo("PluginLogicLibrayPath [" + kPluginLogicLibraryPath + "]");
+  
+#endif
+
     // Register the translator with the system
     MStatus status = MS::kSuccess;
     if (status == MS::kSuccess)
@@ -96,6 +124,14 @@ __declspec(dllexport)
     MStatus uninitializePlugin(MObject obj)
 {
     MFnPlugin plugin(obj);
+
+#if defined(GLTF_EXPORTER_ENABLE_HOT_RELOAD)
+    if (kLogicLibrary.isValid && kLogicLibrary.handle)
+    {
+        unloadExporterLogicDLL(kLogicLibrary);
+    }
+
+#endif
 
     MStatus status = MS::kSuccess;
     if (status == MS::kSuccess)

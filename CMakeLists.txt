@@ -9,6 +9,7 @@ project("glTF-Maya-Exporter-LTE")
 option(GLTF_MAYA_EXPORTER_BUILD_WITH_DRACO          "Build with Draco"             ON)
 option(GLTF_MAYA_EXPORTER_BUILD_MAYA_GLTF_EXPORTER  "Build Maya glTF Exporter"     ON)
 option(GLTF_MAYA_EXPORTER_BUILD_MAYA_VRM_EXPORTER   "Build Maya VRM Exporter"      ON)
+option(GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD     "Build with hot reload feature(for developer)"      ON)
 option(GLTF_MAYA_EXPORTER_BUILD_CPP_INTERFACE       "Build cpp interface and test" OFF)
 
 if (WIN32)
@@ -144,6 +145,26 @@ elseif(UNIX)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Dlinux -m64 -g -pthread -D_BOOL -DLINUX -DLINUX_64 -DFUNCPROTO -DREQUIRE_IOSTREAM -fPIC -Wno-deprecated -fno-gnu-keywords")
 endif()
 
+if (GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD)
+    set(EXPORTER_LOGIC_PLUGIN_NAME "exporter_logic")
+
+    add_library(${EXPORTER_LOGIC_PLUGIN_NAME} SHARED ./src/hotreload/HotReloadExporterLogic.cc)
+
+    if(WIN32)
+        set_target_properties(${EXPORTER_LOGIC_PLUGIN_NAME} PROPERTIES PREFIX "" SUFFIX ".dll")
+    elseif(APPLE OR UNIX)
+        set_target_properties(${EXPORTER_LOGIC_PLUGIN_NAME} PROPERTIES PREFIX "" SUFFIX ".so")
+    endif()
+
+    SET_TARGET_PROPERTIES(${EXPORTER_LOGIC_PLUGIN_NAME} PROPERTIES LINK_FLAGS "-shared -m64 -g -pthread -pipe -D_BOOL -DLINUX -DLINUX_64 -DFUNCPROTO -DREQUIRE_IOSTREAM -fPIC -Wno-deprecated -fno-gnu-keywords -Wl,-Bsymbolic")
+
+
+    add_definitions("-DGLTF_EXPORTER_ENABLE_HOT_RELOAD")
+    list(APPEND EXTRA_GLTF_EXPORTER_SOURCES
+        ./src/hotreload/HotReloadExporter.cc
+        ./src/hotreload/HotReloadExporterPlatform.cc)
+endif (GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD)
+
 # -- glTF Exporter for maya --------------------
 if (GLTF_MAYA_EXPORTER_BUILD_MAYA_GLTF_EXPORTER)
 
@@ -153,6 +174,7 @@ if (GLTF_MAYA_EXPORTER_BUILD_MAYA_GLTF_EXPORTER)
         ./src/glTFExporter/glTFTranslator.cpp
         ./src/glTFExporter/murmur3.c
         ./src/glTFExporter/ProgressWindow.cpp
+        ${EXTRA_GLTF_EXPORTER_SOURCES}
     )
 
     target_link_libraries( glTFExporter

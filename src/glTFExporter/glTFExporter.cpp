@@ -87,6 +87,10 @@
 #include <maya/MTransformationMatrix.h>
 #include <maya/MVector.h>
 
+#if defined(GLTF_EXPORTER_ENABLE_HOT_RELOAD)
+#include "hotreload/HotReloadExporter.h"
+#endif
+
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -115,6 +119,7 @@
 #include "ProgressWindow.h"
 #include "murmur3.h"
 
+
 #if defined(_WIN32)
 //#define strcasecmp stricmp
 #elif defined(OSMac_)
@@ -132,6 +137,12 @@ extern "C" Boolean createMacFile(const char* fileName, FSRef* fsRef, long creato
 #define NO_SMOOTHING_GROUP -1
 #define INITIALIZE_SMOOTHING -2
 #define INVALID_ID -1
+
+#if GLTF_EXPORTER_ENABLE_HOT_RELOAD
+// FIXME(LTE): Define global variables in other location, not here.
+HotReloadableExporter *gHotReloadableExporter = nullptr;
+#endif
+
 
 static std::string GetDirectoryPath(const std::string& path)
 {
@@ -371,6 +382,8 @@ static std::string GetTempDirectory()
 
     return RemoveExt(dir2);
 #else // Linux and macOS
+    // TODO(LTE): Use mkdtemp() + mkstemp()
+
     std::string tmpdir = std::string(getenv("TMPDIR")) + "XXXXXX";
 
     char buffer[1024] = {};
@@ -664,6 +677,8 @@ MStatus glTFExporter::writer(const MFileObject& file, const MString& options, Fi
     int output_animations = 1;             //0:no output, 1: output animation
     int output_invisible_nodes = 0;        //0:
 
+    int force_output = 0;                  //0: Force output(overwrite) glTF files
+
     switch ((int)this->mode_)
     {
     case EXPORT_GLTF:
@@ -722,6 +737,10 @@ MStatus glTFExporter::writer(const MFileObject& file, const MString& options, Fi
             if (theOption[0] == MString("output_onefile") && theOption.length() > 1)
             {
                 output_onefile = theOption[1].asInt();
+            }
+            if (theOption[0] == MString("force_output") && theOption.length() > 1)
+            {
+                force_output = theOption[1].asInt();
             }
             /*
             if (theOption[0] == MString("output_glb") && theOption.length() > 1) {
@@ -845,6 +864,7 @@ MStatus glTFExporter::writer(const MFileObject& file, const MString& options, Fi
     opts->SetInt("recalc_normals", recalc_normals);
     opts->SetInt("output_onefile", output_onefile);
     opts->SetInt("output_glb", output_glb);
+    opts->SetInt("force_output", force_output);
     opts->SetInt("make_preload_texture", make_preload_texture);
     opts->SetInt("output_buffer", output_buffer);
     opts->SetInt("convert_texture_format", convert_texture_format);
@@ -1402,6 +1422,15 @@ static std::shared_ptr<kml::Mesh> TransformMesh(std::shared_ptr<kml::Mesh>& mesh
 static std::shared_ptr<kml::Node> CreateMeshNode(const MDagPath& dagPath)
 {
     MStatus status = MS::kSuccess;
+
+    // HACK
+#if GLTF_EXPORTER_ENABLE_HOT_RELOAD
+    if (!gHotReloadableExporter) {
+      gHotReloadableExporter = reinterpret_cast<HotReloadableExporter*>(HotReloadableExporter::creator());
+      gHotReloadableExporter->postConstructor();
+    }
+    gHotReloadableExporter->export_func(dagPath);
+#endif
 
     std::shared_ptr<kml::Options> opts = kml::Options::GetGlobalOptions();
     int transform_space = opts->GetInt("transform_space");
@@ -3139,6 +3168,12 @@ static bool CheckGLTFDirectoryAlreadyExists(const std::string& path)
             std::string dirPath = RemoveExt(path);
             if (IsFileExist(dirPath))
             {
+                bool force_output = opts->GetInt("force_output") > 0;
+                fprintf(stderr, "force_output %d\n", force_output);
+                if (force_output) {
+                    return true;
+                }
+
                 /*
                 * confirmDialog -title "Confirm" -message "Are you sure?"
                 * -button "Yes" -button "No" -defaultButton "Yes"
