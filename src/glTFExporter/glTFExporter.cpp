@@ -58,6 +58,7 @@
 #include <maya/MFnSet.h>
 #include <maya/MFnSkinCluster.h>
 #include <maya/MFnTransform.h>
+#include <maya/MFnPluginData.h>
 #include <maya/MGlobal.h>
 #include <maya/MIOStream.h>
 #include <maya/MIntArray.h>
@@ -382,13 +383,21 @@ static std::string GetTempDirectory()
 
     return RemoveExt(dir2);
 #else // Linux and macOS
-    // TODO(LTE): Use mkdtemp() + mkstemp()
 
     std::string tmpdir = std::string(getenv("TMPDIR")) + "XXXXXX";
 
-    char buffer[1024] = {};
-    strcpy(buffer, tmpdir.c_str());
-    std::string tmpPath = ::mktemp(buffer);
+    std::vector<char> buffer(tmpdir.size() + 1); // +1 for '\0'
+    strcpy(buffer.data(), tmpdir.c_str());
+    buffer[tmpdir.size()] = '\0';
+
+    char *tempname = mkdtemp(buffer.data());
+    // TODO: Handle failure case. 
+    assert(tempname);
+
+    std::string tmpPath(tempname);
+  
+    free(tempname);
+
     std::string cmd = "mkdir -p ";
     cmd += "\"" + tmpPath + "\"";
     int ret = ::system(cmd.c_str());
@@ -1422,15 +1431,6 @@ static std::shared_ptr<kml::Mesh> TransformMesh(std::shared_ptr<kml::Mesh>& mesh
 static std::shared_ptr<kml::Node> CreateMeshNode(const MDagPath& dagPath)
 {
     MStatus status = MS::kSuccess;
-
-    // HACK
-#if GLTF_EXPORTER_ENABLE_HOT_RELOAD
-    if (!gHotReloadableExporter) {
-      gHotReloadableExporter = reinterpret_cast<HotReloadableExporter*>(HotReloadableExporter::creator());
-      gHotReloadableExporter->postConstructor();
-    }
-    gHotReloadableExporter->export_func(dagPath);
-#endif
 
     std::shared_ptr<kml::Options> opts = kml::Options::GetGlobalOptions();
     int transform_space = opts->GetInt("transform_space");
@@ -2524,6 +2524,25 @@ static bool IsVisibleLeafNode(const std::shared_ptr<kml::Node>& node)
     }
 }
 
+static MStatus WriteXGenHairToGLTF(
+    TexturePathManager& texManager,
+    std::map<int, std::shared_ptr<kml::Material> >& materials,
+    std::vector<std::shared_ptr<kml::Node> >& nodes,
+    const MString& dirname, const MDagPath& dagPath) {
+
+    MStatus status = MS::kSuccess;
+
+    // HACK
+#if GLTF_EXPORTER_ENABLE_HOT_RELOAD
+    if (!gHotReloadableExporter) {
+      gHotReloadableExporter = reinterpret_cast<HotReloadableExporter*>(HotReloadableExporter::creator());
+      gHotReloadableExporter->postConstructor();
+    }
+    gHotReloadableExporter->export_func(dagPath);
+#endif
+
+}
+
 static MStatus WriteGLTF(
     TexturePathManager& texManager,
     std::map<int, std::shared_ptr<kml::Material> >& materials,
@@ -3219,6 +3238,41 @@ static bool CheckGLTFDirectoryAlreadyExists(const std::string& path)
     return true;
 }
 
+//
+// Check if selected dag path is XGen description.
+// 
+// TODO(LTE): Use XGen API?
+static bool IsXGenDag(const MDagPath &dagPath)
+{
+  // There is a `outRenderData` for XGen shape node.
+  // e.g. `description1_Shape.outRenderData`
+  
+  MStatus status;
+
+  MFnDagNode node(dagPath, &status);
+  if (MStatus::kSuccess != status)
+  {
+      return false;
+  }
+
+  MPlug outRenderDataPlug = node.findPlug("outRenderData");
+  if (MStatus::kSuccess != status)
+  {
+      return false;
+  }
+
+  MObject obj = outRenderDataPlug.asMObject();
+  MPxData *data = MFnPluginData(obj).data();
+
+  if (data) {
+    // Assume there is XGen data attached to this dag.
+    MGlobal::displayInfo("XGen node : " + dagPath.fullPathName());
+    return true;
+  }
+
+  return false;
+}
+
 MStatus glTFExporter::exportSelected(const MString& fname)
 {
     MStatus status = MS::kSuccess;
@@ -3277,6 +3331,12 @@ MStatus glTFExporter::exportSelected(const MString& fname)
 
             if (status)
             {
+                // XGen Hair
+                if (IsXGenDag(dagPath)) {
+                    dagPaths.push_back(dagPath);
+                    continue;
+                }
+
                 // skip over intermediate objects
                 //
                 MFnDagNode dagNode(dagPath, &status);
@@ -4419,9 +4479,13 @@ MStatus glTFExporter::exportProcess(const MString& fname, const std::vector<MDag
                 }
                 if (bProcess)
                 {
+                    // Consider Mesh or Hair(XGen IG spline)
                     if (dagPath.hasFn(MFn::kMesh))
                     {
                         status = WriteGLTF(texManager, materials, nodes, MString(dir_path.c_str()), dagPath);
+                    } else if (IsXGenDag(dagPath))
+                    {
+                        status = WriteXGenHairToGLTF(texManager, materials, nodes, MString(dir_path.c_str()), dagPath);
                     }
                 }
                 progWindow->SetProgressStatus("");

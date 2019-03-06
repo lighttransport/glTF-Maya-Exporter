@@ -63,7 +63,7 @@ inline DLLHandle loadSharedLibrary(const char *filename, int flags)
 
 inline DLLHandle loadSharedLibrary(const char *filename)
 {
-	DLLHandle libHandle = loadSharedLibrary(filename, RTLD_LAZY);
+	DLLHandle libHandle = loadSharedLibrary(filename, RTLD_NOW);
 	return libHandle;
 }
 

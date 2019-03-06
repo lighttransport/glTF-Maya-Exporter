@@ -99,7 +99,13 @@ MStatus HotReloadableExporter::export_func(const MDagPath& dag)
 
     // Call a method defined in dll.
     const void *arg = reinterpret_cast<const void*>(&dag);
-    kLogicLibrary.exportCB(arg);
+
+    try {
+      kLogicLibrary.exportCB(arg);
+    } catch (std::exception &e) {
+      std::cerr << "[HotReload] Exception happened inside logic dll. what = " << e.what() << std::endl;
+      // TODO(LTE): recover previous state?
+    }
 
     return result;
 }

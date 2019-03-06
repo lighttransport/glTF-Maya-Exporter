@@ -21,7 +21,7 @@ endif()
 
 set(CMAKE_POSITION_INDEPENDENT_CODE On)
 
-# -- draco setting ---------------------------------------------- 
+# -- draco setting ----------------------------------------------
 if(GLTF_MAYA_EXPORTER_BUILD_WITH_DRACO)
     # DRACO setting
     add_subdirectory(externals/draco)
@@ -81,6 +81,10 @@ if(GLTF_MAYA_EXPORTER_BUILD_MAYA_GLTF_EXPORTER OR GLTF_MAYA_EXPORTER_BUILD_MAYA_
     message(MAYA_INCLUDE_PATH: "${MAYA_INCLUDE_PATH}")
     message(MAYA_LIBRARY_PATH: "${MAYA_LIBRARY_PATH}")
 
+    # Xgen
+    SET(XGEN_INCLUDE_PATH ${GLTF_MAYA_EXPORTER_MAYA_PATH}/plug-ins/xgen/include)
+    SET(XGEN_LIBRARY_PATH ${GLTF_MAYA_EXPORTER_MAYA_PATH}/plug-ins/xgen/lib/)
+
 endif()
 
 # -- compile options, include and libraries -----------------
@@ -94,9 +98,10 @@ include_directories(
     ${BUILD_DIR}/
     ${DRACO_SRC_PATH}
     ${MAYA_INCLUDE_PATH}
+    ${XGEN_INCLUDE_PATH}
 )
 
-link_directories(${MAYA_LIBRARY_PATH})
+link_directories(${MAYA_LIBRARY_PATH} ${XGEN_LIBRARY_PATH})
 
 # -----------------------------------------------------------
 
@@ -132,8 +137,8 @@ add_library( kml STATIC
     ./src/kml/TriangulateMesh.cpp
 )
 
-target_link_libraries( kml 
-                       kil 
+target_link_libraries( kml
+                       kil
                        ${DRACO_LIB})
 
 # force define for maya header ifdef condition (building for makefile project)
@@ -149,6 +154,14 @@ if (GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD)
     set(EXPORTER_LOGIC_PLUGIN_NAME "exporter_logic")
 
     add_library(${EXPORTER_LOGIC_PLUGIN_NAME} SHARED ./src/hotreload/HotReloadExporterLogic.cc)
+
+    # Must link with OpenMaya otherwise undefined symbol error happens when loading dll(Linux only?).
+    target_link_libraries(${EXPORTER_LOGIC_PLUGIN_NAME}
+                        AdskXGen
+                        OpenMaya
+                        OpenMayaAnim  # For SkinCluster
+                        OpenMayaUI # For progress window
+                        Foundation)
 
     if(WIN32)
         set_target_properties(${EXPORTER_LOGIC_PLUGIN_NAME} PROPERTIES PREFIX "" SUFFIX ".dll")
@@ -205,7 +218,7 @@ endif()
 
 # -- VRM Exporter for maya --------------------
 if (GLTF_MAYA_EXPORTER_BUILD_MAYA_VRM_EXPORTER)
-    
+
     add_library( vrmExporter SHARED
         ./src/glTFExporter/vrmExporterRegister.cpp
         ./src/glTFExporter/glTFExporter.cpp
@@ -218,6 +231,7 @@ if (GLTF_MAYA_EXPORTER_BUILD_MAYA_VRM_EXPORTER)
 
     target_link_libraries( vrmExporter
                         kml
+                        AdskXGen
                         OpenMaya
                         OpenMayaAnim
                         OpenMayaUI
