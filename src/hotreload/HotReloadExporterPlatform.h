@@ -12,7 +12,7 @@
 #include <maya/MString.h>
 
 /// This is the prototype for the function that will be dynamically hotloaded.
-typedef void (*ExportFunc)(const void *arg);
+typedef void (*ExportFunc)(const void *in_arg, void *out_arg);
 
 
 /// This is initialized to the path of the exporter's **business logic** DLL

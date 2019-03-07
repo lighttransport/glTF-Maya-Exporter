@@ -391,11 +391,11 @@ static std::string GetTempDirectory()
     buffer[tmpdir.size()] = '\0';
 
     char *tempname = mkdtemp(buffer.data());
-    // TODO: Handle failure case. 
+    // TODO: Handle failure case.
     assert(tempname);
 
     std::string tmpPath(tempname);
-  
+
     free(tempname);
 
     std::string cmd = "mkdir -p ";
@@ -1679,7 +1679,7 @@ static bool getTextureAndColor(const MFnDependencyNode& node, const MString& nam
                 if (!colorSpace.empty()) {
                     tex->SetColorSpace(colorSpace);
                 }
-                
+
 
                 // if material has texture, set color(1,1,1)
                 color.r = 1.0f;
@@ -2538,8 +2538,29 @@ static MStatus WriteXGenHairToGLTF(
       gHotReloadableExporter = reinterpret_cast<HotReloadableExporter*>(HotReloadableExporter::creator());
       gHotReloadableExporter->postConstructor();
     }
-    gHotReloadableExporter->export_func(dagPath);
+    XGenHairProcessInput input;
+    XGenHairProcessOutput output;
+    input.dagPath = dagPath;
+    gHotReloadableExporter->export_func(input, &output);
+
+    // TODO(LTE): Support texture for hair material.
+    if (!output.shader.isNull()) {
+
+        int shaderID = (int)MObjectHandle::objectHashCode(output.shader);
+        fprintf(stderr, "shaderID = %d\n", shaderID);
+        MaterialMapType::iterator it = materials.find(shaderID);
+        if (it == materials.end())
+        {
+            std::shared_ptr<kml::Material> mat = ConvertMaterial(output.shader);
+            materials[shaderID] = mat;
+            MFnDependencyNode fn(output.shader);
+            MGlobal::displayInfo("Added hair material : " + fn.name());
+        }
+    }
+
 #endif
+
+    return status;
 
 }
 
@@ -2595,7 +2616,7 @@ static MStatus WriteGLTF(
                       // material's doubleSided.
                       // This may give wrong result when a material is shared
                       // with multiple meshes, whose doubleSided propery
-                      // differs. 
+                      // differs.
 
                       mat->SetInteger("doubleSided", node->GetMesh()->double_sided ? 1 : 0);
                     }
@@ -3240,13 +3261,13 @@ static bool CheckGLTFDirectoryAlreadyExists(const std::string& path)
 
 //
 // Check if selected dag path is XGen description.
-// 
+//
 // TODO(LTE): Use XGen API?
 static bool IsXGenDag(const MDagPath &dagPath)
 {
   // There is a `outRenderData` for XGen shape node.
   // e.g. `description1_Shape.outRenderData`
-  
+
   MStatus status;
 
   MFnDagNode node(dagPath, &status);

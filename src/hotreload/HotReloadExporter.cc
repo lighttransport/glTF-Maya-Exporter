@@ -4,6 +4,7 @@
 
 #include "HotReloadExporter.h"
 #include "HotReloadExporterPlatform.h"
+#include "XGenHairProcessInputOutput.h"
 //#include "HotReloadExporterLogic.h"
 
 #include <maya/MGlobal.h>
@@ -37,7 +38,7 @@ MStatus HotReloadableExporter::initialize()
     return result;
 }
 
-MStatus HotReloadableExporter::export_func(const MDagPath& dag)
+MStatus HotReloadableExporter::export_func(const XGenHairProcessInput &input, XGenHairProcessOutput *output)
 {
     LibraryStatus status;
 
@@ -98,10 +99,11 @@ MStatus HotReloadableExporter::export_func(const MDagPath& dag)
     //float envelope = envelopeHandle.asFloat();
 
     // Call a method defined in dll.
-    const void *arg = reinterpret_cast<const void*>(&dag);
+    const void *in_arg = reinterpret_cast<const void*>(&input);
+    void *out_arg = reinterpret_cast<void*>(output);
 
     try {
-      kLogicLibrary.exportCB(arg);
+      kLogicLibrary.exportCB(in_arg, out_arg);
     } catch (std::exception &e) {
       std::cerr << "[HotReload] Exception happened inside logic dll. what = " << e.what() << std::endl;
       // TODO(LTE): recover previous state?

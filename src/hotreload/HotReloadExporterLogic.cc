@@ -20,13 +20,15 @@
 
 #include <chrono>
 
+#include "XGenHairProcessInputOutput.h"
+
 namespace
 {
 
     ///
-    /// Get a material assigned to XGen node.
+    /// Get a material(ShadingGroup in Maya) assigned to XGen node.
     ///
-    static bool GetMaterialOfXGenNode(const MDagPath& dagPath, MObject *shader)
+    static MObject GetMaterialOfXGenNode(const MDagPath& dagPath)
     {
 
         MStatus status = MStatus::kSuccess;
@@ -37,7 +39,7 @@ namespace
         MFnDagNode node(shapePath, &status);
         if (MStatus::kSuccess != status)
         {
-            return false;
+            return MObject::kNullObj;
         }
 
         MObjectArray sgs; // shading groups
@@ -46,7 +48,7 @@ namespace
 
         if (sgs.length() < 1) {
             // No material assigned?
-            return false;
+            return MObject::kNullObj;
         }
 
         MFnDependencyNode sg_fn(sgs[0]);
@@ -60,13 +62,14 @@ namespace
             bool asDst = true;
             shaderPlug.connectedTo( connectedPlugs, asDst, asSrc );
             if (connectedPlugs.length() == 1) {
-                (*shader) = connectedPlugs[0].node();
+                // Return SG, not surfaceShader, since glTFExporter looks up `surfaceShader` when converting Maya shader to Material.
+                return sgs[0];
             } else {
                 // Fail to get a shader for some reason(link invalid?)
             }
         }
 
-        return false;
+        return MObject::kNullObj;
     }
 
     ///
@@ -115,25 +118,26 @@ namespace
 Shared
 {
     // Write your own function here.
-    DLLExport void exportFunc(const void* arg)
+    DLLExport void exportFunc(const void* in_arg, void *out_arg)
     {
+        const XGenHairProcessInput *input = reinterpret_cast<const XGenHairProcessInput *>(in_arg);
+        XGenHairProcessOutput *output = reinterpret_cast<XGenHairProcessOutput *>(out_arg);
+
         // TODO(LTE): Read export parameters
         const int num_strands = -1; // -1 = export all strands.
         const bool phantom_points = false;
         const bool cv_repeat = true;
 
-        const MDagPath* dag = reinterpret_cast<const MDagPath*>(arg);
-        MString fullPathName = dag->fullPathName();
+        const MDagPath dag = input->dagPath;
+        MString fullPathName = dag.fullPathName();
 
         MGlobal::displayInfo("Exporting " + fullPathName);
-
-        MStatus status;
 
         const char* str = fullPathName.asChar();
 
         std::stringstream binary_data;
         {
-            bool ret = ExtractPluginData(*dag, &binary_data);
+            bool ret = ExtractPluginData(dag, &binary_data);
             if (!ret)
             {
                 MGlobal::displayError("Failed to extract XGen spline data. dag = " + fullPathName);
@@ -156,14 +160,17 @@ Shared
 
         MGlobal::displayInfo("Loaded spline data. dag = " + fullPathName);
 
+        MObject shaderObject = GetMaterialOfXGenNode(dag);
+        output->shader = shaderObject;
+
         XGenSplineAPI::XgItSpline it = _splines.iterator();
 
         // TODO(LTE): Create array for each spline primitive and do not create 1D global array.
         // std::vector<float> patch_uvs; // TODO(LTE)
-        std::vector<float> texcoords;
-        std::vector<float> points;
-        std::vector<float> radiuss;
-        std::vector<uint32_t> num_points;
+        std::vector<float> &texcoords = output->texcoords;
+        std::vector<float> &points = output->points;
+        std::vector<float> &radiuss = output->radiuss;
+        std::vector<uint32_t> &num_points = output->num_points;
 
         size_t counts = 0; // exported number of strands;
         for (; !it.isDone(); it.next())
