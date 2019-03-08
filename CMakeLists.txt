@@ -11,6 +11,8 @@ option(GLTF_MAYA_EXPORTER_BUILD_MAYA_GLTF_EXPORTER  "Build Maya glTF Exporter"  
 option(GLTF_MAYA_EXPORTER_BUILD_MAYA_VRM_EXPORTER   "Build Maya VRM Exporter"      ON)
 option(GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD     "Build with hot reload feature(for developer)"      ON)
 option(GLTF_MAYA_EXPORTER_BUILD_CPP_INTERFACE       "Build cpp interface and test" OFF)
+option(GLTF_MAYA_EXPORTER_WITH_CCACHE               "Compile with ccache(if available. for developer)" ON)
+
 
 if (WIN32)
     SET(GLTF_MAYA_EXPORTER_MAYA_PATH "C:/Program Files/Autodesk/Maya2018" CACHE PATH "Installed Maya Directory")
@@ -20,6 +22,30 @@ endif()
 # ===============================================================
 
 set(CMAKE_POSITION_INDEPENDENT_CODE On)
+
+# [ccache]
+if (GLTF_MAYA_EXPORTER_WITH_CCACHE)
+  find_program(CCACHE_EXE ccache)
+  if (CCACHE_EXE)
+
+    message(STATUS "Use ccache : " ${CCACHE_EXE})
+    # CMAKE_C_COMPILER_LAUNCHER = available from cmake 3.4+)
+    if (CMAKE_C_COMPILER_LAUNCHER)
+      set(CMAKE_C_COMPILER_LAUNCHER "${CMAKE_C_COMPILER_LAUNCHER}" "${CCACHE_EXE}")
+    else()
+      set(CMAKE_C_COMPILER_LAUNCHER "${CCACHE_EXE}")
+    endif()
+
+    if (CMAKE_CXX_COMPILER_LAUNCHER)
+      set(CMAKE_CXX_COMPILER_LAUNCHER "${CMAKE_CXX_COMPILER_LAUNCHER}" "${CCACHE_EXE}")
+    else()
+      set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_EXE}")
+    endif()
+
+  endif (CCACHE_EXE)
+
+endif()
+
 
 # -- draco setting ----------------------------------------------
 if(GLTF_MAYA_EXPORTER_BUILD_WITH_DRACO)
@@ -151,9 +177,22 @@ elseif(UNIX)
 endif()
 
 if (GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD)
+    #
+    # Experimental. Use flatbuffers for serialization
+    #
+
+    # [flatbuffers]
+    set(FLATBUFFERS_BUILD_TESTS Off CACHE INTERNAL "" FORCE)
+    set(FLATBUFFERS_BUILD_FLATHASH Off CACHE INTERNAL "" FORCE)
+    set(FLATBUFFERS_INSTALL Off CACHE INTERNAL "" FORCE)
+
+    add_subdirectory(${CMAKE_SOURCE_DIR}/externals/flatbuffers)
+
     set(EXPORTER_LOGIC_PLUGIN_NAME "exporter_logic")
 
-    add_library(${EXPORTER_LOGIC_PLUGIN_NAME} SHARED ./src/hotreload/HotReloadExporterLogic.cc)
+    add_library(${EXPORTER_LOGIC_PLUGIN_NAME} SHARED
+                ./src/hotreload/HotReloadExporterLogic.cc
+                ./src/hotreload/cyhair-writer.cc)
 
     # Must link with OpenMaya otherwise undefined symbol error happens when loading dll(Linux only?).
     target_link_libraries(${EXPORTER_LOGIC_PLUGIN_NAME}

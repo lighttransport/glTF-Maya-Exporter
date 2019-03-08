@@ -21,10 +21,12 @@ struct XGenHairProcessInput
 
 struct XGenHairProcessOutput
 {
-    std::vector<float> texcoords;
-    std::vector<float> points;
-    std::vector<float> radiuss;
-    std::vector<uint32_t> num_points;
+    std::vector<float> texcoords; // 1D texcoord array
+    std::vector<float> points; // 1D points array
+    std::vector<float> radiuss; // 1D radius(width) array
+    std::vector<uint32_t> num_points; // array of # of CVs(control vertices) per strand.
 
-    MObject shader; // surface shader(material) assigend to XGen IG node.
+    MObject shader; // SG node assigend to XGen IG node.
+
+    std::string cyhair_data;    // XGen spline data serializd to CyHair binary format. empty = failed to serialize
 };

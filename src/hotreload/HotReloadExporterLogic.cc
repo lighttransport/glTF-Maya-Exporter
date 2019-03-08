@@ -22,6 +22,8 @@
 
 #include "XGenHairProcessInputOutput.h"
 
+#include "cyhair-writer.h"
+
 namespace
 {
 
@@ -302,14 +304,28 @@ Shared
             }
         }
 
+        // Serialize to CyHair format.
+        output->cyhair_data = cyhair_writer::SerializeAsCyHair(points, radiuss, texcoords, num_points, /* export radius */true, /* export texcoords */true);
+
+
         const auto end_time = std::chrono::system_clock::now();
         std::chrono::duration<double, std::milli> ms = end_time - start_time;
 
         std::string duration = std::to_string(ms.count());
-        std::stringstream ss;
-        ss << "Converted " << counts << " splines";
-        MString msg(ss.str().c_str());
-        MGlobal::displayInfo(msg);
+        {
+            std::stringstream ss;
+            ss << "Converted " << counts << " splines";
+            MString msg(ss.str().c_str());
+            MGlobal::displayInfo(msg);
+        }
+
+        {
+            std::stringstream ss;
+            ss << "CyHair data size: " << output->cyhair_data.size() << " bytes";
+            MString msg(ss.str().c_str());
+            MGlobal::displayInfo(msg);
+        }
+
         MGlobal::displayInfo("Strand conversion time: " + MString(duration.c_str()) + " [ms]");
 
         return;

@@ -7,3 +7,6 @@
 [submodule "externals/picojson"]
 	path = externals/picojson
 	url = https://github.com/kazuho/picojson.git
+[submodule "externals/flatbuffers"]
+	path = externals/flatbuffers
+	url = https://github.com/google/flatbuffers.git
