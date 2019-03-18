@@ -24,8 +24,74 @@
 
 #include "cyhair-writer.h"
 
+// grpc + fb
+#include <grpc++/grpc++.h>
+
+#include "hotreload.grpc.fb.h"
+#include "hotreload_generated.h"
+
 namespace
 {
+
+class GreeterClient {
+ public:
+  GreeterClient(std::shared_ptr<grpc::Channel> channel)
+    : stub_(Greeter::NewStub(channel)) {}
+
+  std::string SendCyhair(const std::vector<uint8_t> &data) {
+    flatbuffers::grpc::MessageBuilder mb;
+    auto name_offset = mb.CreateVector(data);
+    auto request_offset = CreateCyhairRequest(mb, name_offset);
+    mb.Finish(request_offset);
+    auto request_msg = mb.ReleaseMessage<CyhairRequest>();
+
+    flatbuffers::grpc::Message<CyhairReply> response_msg;
+
+    grpc::ClientContext context;
+
+    auto status = stub_->SendCyhair(&context, request_msg, &response_msg);
+    if (status.ok()) {
+      const CyhairReply *response = response_msg.GetRoot();
+      return response->message()->str();
+    } else {
+      std::cerr << status.error_code() << ": " << status.error_message()
+                << std::endl;
+      return "RPC failed";
+    }
+  }
+
+#if 0
+  void SayManyHellos(const std::string &name, int num_greetings,
+                     std::function<void(const std::string &)> callback) {
+    flatbuffers::grpc::MessageBuilder mb;
+    auto name_offset = mb.CreateString(name);
+    auto request_offset =
+        CreateManyHellosRequest(mb, name_offset, num_greetings);
+    mb.Finish(request_offset);
+    auto request_msg = mb.ReleaseMessage<ManyHellosRequest>();
+
+    flatbuffers::grpc::Message<HelloReply> response_msg;
+
+    grpc::ClientContext context;
+
+    auto stream = stub_->SayManyHellos(&context, request_msg);
+    while (stream->Read(&response_msg)) {
+      const HelloReply *response = response_msg.GetRoot();
+      callback(response->message()->str());
+    }
+    auto status = stream->Finish();
+    if (!status.ok()) {
+      std::cerr << status.error_code() << ": " << status.error_message()
+                << std::endl;
+      callback("RPC failed");
+    }
+  }
+#endif
+
+ private:
+  std::unique_ptr<Greeter::Stub> stub_;
+};
+
 
     ///
     /// Get a material(ShadingGroup in Maya) assigned to XGen node.
@@ -48,7 +114,8 @@ namespace
         MObjectArray compos;
         node.getConnectedSetsAndMembers(shapePath.instanceNumber(), sgs, compos, true);
 
-        if (sgs.length() < 1) {
+        if (sgs.length() < 1)
+        {
             // No material assigned?
             return MObject::kNullObj;
         }
@@ -58,15 +125,19 @@ namespace
         MGlobal::displayInfo("SG: " + sg_fn.name());
 
         MPlug shaderPlug = sg_fn.findPlug("surfaceShader");
-        if (!shaderPlug.isNull()) {
+        if (!shaderPlug.isNull())
+        {
             MPlugArray connectedPlugs;
             bool asSrc = false;
             bool asDst = true;
-            shaderPlug.connectedTo( connectedPlugs, asDst, asSrc );
-            if (connectedPlugs.length() == 1) {
+            shaderPlug.connectedTo(connectedPlugs, asDst, asSrc);
+            if (connectedPlugs.length() == 1)
+            {
                 // Return SG, not surfaceShader, since glTFExporter looks up `surfaceShader` when converting Maya shader to Material.
                 return sgs[0];
-            } else {
+            }
+            else
+            {
                 // Fail to get a shader for some reason(link invalid?)
             }
         }
@@ -115,15 +186,34 @@ namespace
         return false;
     }
 
+    // HACK
+    static void SendCyhairData(const std::string &cyhair_data)
+    {
+
+        std::string server_address("localhost:50051");
+
+        auto channel =
+            grpc::CreateChannel(server_address, grpc::InsecureChannelCredentials());
+        GreeterClient greeter(channel);
+
+        // To [ubyte]
+        std::vector<uint8_t> buffer;
+        buffer.resize(cyhair_data.size());
+        memcpy(buffer.data(), cyhair_data.c_str(), buffer.size());
+
+        std::string message = greeter.SendCyhair(buffer);
+        std::cerr << "SendCyhair received: " << message << std::endl;
+    }
+
 } // namespace
 
 Shared
 {
     // Write your own function here.
-    DLLExport void exportFunc(const void* in_arg, void *out_arg)
+    DLLExport void exportFunc(const void* in_arg, void* out_arg)
     {
-        const XGenHairProcessInput *input = reinterpret_cast<const XGenHairProcessInput *>(in_arg);
-        XGenHairProcessOutput *output = reinterpret_cast<XGenHairProcessOutput *>(out_arg);
+        const XGenHairProcessInput* input = reinterpret_cast<const XGenHairProcessInput*>(in_arg);
+        XGenHairProcessOutput* output = reinterpret_cast<XGenHairProcessOutput*>(out_arg);
 
         // TODO(LTE): Read export parameters
         const int num_strands = -1; // -1 = export all strands.
@@ -169,10 +259,10 @@ Shared
 
         // TODO(LTE): Create array for each spline primitive and do not create 1D global array.
         // std::vector<float> patch_uvs; // TODO(LTE)
-        std::vector<float> &texcoords = output->texcoords;
-        std::vector<float> &points = output->points;
-        std::vector<float> &radiuss = output->radiuss;
-        std::vector<uint32_t> &num_points = output->num_points;
+        std::vector<float>& texcoords = output->texcoords;
+        std::vector<float>& points = output->points;
+        std::vector<float>& radiuss = output->radiuss;
+        std::vector<uint32_t>& num_points = output->num_points;
 
         size_t counts = 0; // exported number of strands;
         for (; !it.isDone(); it.next())
@@ -305,8 +395,7 @@ Shared
         }
 
         // Serialize to CyHair format.
-        output->cyhair_data = cyhair_writer::SerializeAsCyHair(points, radiuss, texcoords, num_points, /* export radius */true, /* export texcoords */true);
-
+        output->cyhair_data = cyhair_writer::SerializeAsCyHair(points, radiuss, texcoords, num_points, /* export radius */ true, /* export texcoords */ true);
 
         const auto end_time = std::chrono::system_clock::now();
         std::chrono::duration<double, std::milli> ms = end_time - start_time;
@@ -324,6 +413,18 @@ Shared
             ss << "CyHair data size: " << output->cyhair_data.size() << " bytes";
             MString msg(ss.str().c_str());
             MGlobal::displayInfo(msg);
+        }
+
+        //
+        // HACK
+        //
+        {
+            const auto start_time = std::chrono::system_clock::now();
+
+            SendCyhairData(output->cyhair_data);
+
+            const auto end_time = std::chrono::system_clock::now();
+            std::chrono::duration<double, std::milli> ms = end_time - start_time;
         }
 
         MGlobal::displayInfo("Strand conversion time: " + MString(duration.c_str()) + " [ms]");

@@ -10,3 +10,6 @@
 [submodule "externals/flatbuffers"]
 	path = externals/flatbuffers
 	url = https://github.com/google/flatbuffers.git
+[submodule "externals/grpc"]
+	path = externals/grpc
+	url = https://github.com/grpc/grpc

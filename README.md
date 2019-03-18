@@ -1,15 +1,27 @@
-# glTF-Maya-Exporter
+# glTF-Maya-Exporter with dll hot-reload feature.
 
-## Maya glTF 2.0 Exporter
+Bsed on Maya glTF 2.0 Exporter https://github.com/kashikacojp/glTF-Maya-Exporter
 
-The prebuild binary is here: https://kashika.co.jp/product/gltfexporter/
+## Hot to build
+
+First checkout all submodules.
+
+```
+$ git submodule update --recursive --init
+```
+
+Then build by setting path to Maya.
+
+```
+$ cmake -DGLTF_MAYA_EXPORTER_MAYA_PATH=/usr/autodesk/maya2018/ -Bbuild -H.
+```
 
 ## Version
-1.5.2
+1.5.4
 
 ## Introduction
 This is the glTF 2.0 exporter for AUTODESK MAYA (
-https://www.autodesk.co.jp/products/maya/). 
+https://www.autodesk.co.jp/products/maya/).
 
 This repositry contains mel scripts and C++ source codes.
 
@@ -81,6 +93,15 @@ We support MAYA2017 and MAYA2018 on Windows and macOS, now.
 - glm: https://github.com/g-truc/glm
 
 - picojson: https://github.com/kazuho/picojson/
+
+- flatbuffers: https://google.github.io/flatbuffers/
+
+- gRPC: https://github.com/grpc/grpc
+
+### Note on gRPC version
+
+We need to use same gRPC version used in flatbuffers package.
+(v1.15.1)
 
 
 ## License

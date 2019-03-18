@@ -1,323 +1,468 @@
 cmake_minimum_required(VERSION 3.2.3)
 
-#Use solution folders.
+# Use solution folders.
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 project("glTF-Maya-Exporter-LTE")
 
 # -- options ----------------------------------------------------
-option(GLTF_MAYA_EXPORTER_BUILD_WITH_DRACO          "Build with Draco"             ON)
-option(GLTF_MAYA_EXPORTER_BUILD_MAYA_GLTF_EXPORTER  "Build Maya glTF Exporter"     ON)
-option(GLTF_MAYA_EXPORTER_BUILD_MAYA_VRM_EXPORTER   "Build Maya VRM Exporter"      ON)
-option(GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD     "Build with hot reload feature(for developer)"      ON)
-option(GLTF_MAYA_EXPORTER_BUILD_CPP_INTERFACE       "Build cpp interface and test" OFF)
-option(GLTF_MAYA_EXPORTER_WITH_CCACHE               "Compile with ccache(if available. for developer)" ON)
+option(GLTF_MAYA_EXPORTER_BUILD_WITH_DRACO "Build with Draco" ON)
+option(GLTF_MAYA_EXPORTER_BUILD_MAYA_GLTF_EXPORTER "Build Maya glTF Exporter"
+       ON)
+option(GLTF_MAYA_EXPORTER_BUILD_MAYA_VRM_EXPORTER "Build Maya VRM Exporter" ON)
+option(GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD
+       "Build with hot reload feature(for developer)" ON)
+option(GLTF_MAYA_EXPORTER_BUILD_CPP_INTERFACE "Build cpp interface and test"
+       OFF)
+option(GLTF_MAYA_EXPORTER_WITH_CCACHE
+       "Compile with ccache(if available. for developer)" ON)
 
-
-if (WIN32)
-    SET(GLTF_MAYA_EXPORTER_MAYA_PATH "C:/Program Files/Autodesk/Maya2018" CACHE PATH "Installed Maya Directory")
+if(WIN32)
+  set(GLTF_MAYA_EXPORTER_MAYA_PATH "C:/Program Files/Autodesk/Maya2018"
+      CACHE PATH "Installed Maya Directory")
 elseif(APPLE)
-    SET(GLTF_MAYA_EXPORTER_MAYA_PATH "/Applications/Autodesk/maya2018" CACHE PATH "Installed Maya Directory")
+  set(GLTF_MAYA_EXPORTER_MAYA_PATH "/Applications/Autodesk/maya2018"
+      CACHE PATH "Installed Maya Directory")
 endif()
 # ===============================================================
 
 set(CMAKE_POSITION_INDEPENDENT_CODE On)
 
 # [ccache]
-if (GLTF_MAYA_EXPORTER_WITH_CCACHE)
+if(GLTF_MAYA_EXPORTER_WITH_CCACHE)
   find_program(CCACHE_EXE ccache)
-  if (CCACHE_EXE)
+  if(CCACHE_EXE)
 
     message(STATUS "Use ccache : " ${CCACHE_EXE})
     # CMAKE_C_COMPILER_LAUNCHER = available from cmake 3.4+)
-    if (CMAKE_C_COMPILER_LAUNCHER)
-      set(CMAKE_C_COMPILER_LAUNCHER "${CMAKE_C_COMPILER_LAUNCHER}" "${CCACHE_EXE}")
+    if(CMAKE_C_COMPILER_LAUNCHER)
+      set(CMAKE_C_COMPILER_LAUNCHER "${CMAKE_C_COMPILER_LAUNCHER}"
+          "${CCACHE_EXE}")
     else()
       set(CMAKE_C_COMPILER_LAUNCHER "${CCACHE_EXE}")
     endif()
 
-    if (CMAKE_CXX_COMPILER_LAUNCHER)
-      set(CMAKE_CXX_COMPILER_LAUNCHER "${CMAKE_CXX_COMPILER_LAUNCHER}" "${CCACHE_EXE}")
+    if(CMAKE_CXX_COMPILER_LAUNCHER)
+      set(CMAKE_CXX_COMPILER_LAUNCHER "${CMAKE_CXX_COMPILER_LAUNCHER}"
+          "${CCACHE_EXE}")
     else()
       set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_EXE}")
     endif()
 
-  endif (CCACHE_EXE)
+  endif(CCACHE_EXE)
 
 endif()
-
 
 # -- draco setting ----------------------------------------------
 if(GLTF_MAYA_EXPORTER_BUILD_WITH_DRACO)
-    # DRACO setting
-    add_subdirectory(externals/draco)
+  # DRACO setting
+  add_subdirectory(externals/draco)
 
-    ## beautify ME!
-    set_target_properties(draco PROPERTIES FOLDER Draco)
-    set_target_properties(draco_attributes PROPERTIES FOLDER Draco)
-    set_target_properties(draco_compression_attributes_dec PROPERTIES FOLDER Draco)
-    set_target_properties(draco_compression_attributes_enc PROPERTIES FOLDER Draco)
-    set_target_properties(draco_compression_attributes_pred_schemes_dec PROPERTIES FOLDER Draco)
-    set_target_properties(draco_compression_attributes_pred_schemes_enc PROPERTIES FOLDER Draco)
-    set_target_properties(draco_compression_decode PROPERTIES FOLDER Draco)
-    set_target_properties(draco_compression_encode PROPERTIES FOLDER Draco)
-    set_target_properties(draco_compression_mesh_dec PROPERTIES FOLDER Draco)
-    set_target_properties(draco_compression_mesh_enc PROPERTIES FOLDER Draco)
-    set_target_properties(draco_core PROPERTIES FOLDER Draco)
-    set_target_properties(draco_core_bit_coders PROPERTIES FOLDER Draco)
-    set_target_properties(draco_dec_config PROPERTIES FOLDER Draco)
-    set_target_properties(draco_decoder PROPERTIES FOLDER Draco)
-    set_target_properties(draco_enc_config PROPERTIES FOLDER Draco)
-    set_target_properties(draco_encoder PROPERTIES FOLDER Draco)
-    set_target_properties(draco_io PROPERTIES FOLDER Draco)
-    set_target_properties(draco_mesh PROPERTIES FOLDER Draco)
-    set_target_properties(draco_metadata PROPERTIES FOLDER Draco)
-    set_target_properties(draco_metadata_dec PROPERTIES FOLDER Draco)
-    set_target_properties(draco_metadata_enc PROPERTIES FOLDER Draco)
-    set_target_properties(draco_point_cloud PROPERTIES FOLDER Draco)
-    set_target_properties(draco_compression_point_cloud_dec PROPERTIES FOLDER Draco)
-    set_target_properties(draco_compression_point_cloud_enc PROPERTIES FOLDER Draco)
-    set_target_properties(draco_points_dec PROPERTIES FOLDER Draco)
-    set_target_properties(draco_points_enc PROPERTIES FOLDER Draco)
-    set_target_properties(dracodec PROPERTIES FOLDER Draco)
-    set_target_properties(dracoenc PROPERTIES FOLDER Draco)
+  # beautify ME!
+  set_target_properties(draco PROPERTIES FOLDER Draco)
+  set_target_properties(draco_attributes PROPERTIES FOLDER Draco)
+  set_target_properties(draco_compression_attributes_dec
+                        PROPERTIES FOLDER Draco)
+  set_target_properties(draco_compression_attributes_enc
+                        PROPERTIES FOLDER Draco)
+  set_target_properties(draco_compression_attributes_pred_schemes_dec
+                        PROPERTIES FOLDER Draco)
+  set_target_properties(draco_compression_attributes_pred_schemes_enc
+                        PROPERTIES FOLDER Draco)
+  set_target_properties(draco_compression_decode PROPERTIES FOLDER Draco)
+  set_target_properties(draco_compression_encode PROPERTIES FOLDER Draco)
+  set_target_properties(draco_compression_mesh_dec PROPERTIES FOLDER Draco)
+  set_target_properties(draco_compression_mesh_enc PROPERTIES FOLDER Draco)
+  set_target_properties(draco_core PROPERTIES FOLDER Draco)
+  set_target_properties(draco_core_bit_coders PROPERTIES FOLDER Draco)
+  set_target_properties(draco_dec_config PROPERTIES FOLDER Draco)
+  set_target_properties(draco_decoder PROPERTIES FOLDER Draco)
+  set_target_properties(draco_enc_config PROPERTIES FOLDER Draco)
+  set_target_properties(draco_encoder PROPERTIES FOLDER Draco)
+  set_target_properties(draco_io PROPERTIES FOLDER Draco)
+  set_target_properties(draco_mesh PROPERTIES FOLDER Draco)
+  set_target_properties(draco_metadata PROPERTIES FOLDER Draco)
+  set_target_properties(draco_metadata_dec PROPERTIES FOLDER Draco)
+  set_target_properties(draco_metadata_enc PROPERTIES FOLDER Draco)
+  set_target_properties(draco_point_cloud PROPERTIES FOLDER Draco)
+  set_target_properties(draco_compression_point_cloud_dec
+                        PROPERTIES FOLDER Draco)
+  set_target_properties(draco_compression_point_cloud_enc
+                        PROPERTIES FOLDER Draco)
+  set_target_properties(draco_points_dec PROPERTIES FOLDER Draco)
+  set_target_properties(draco_points_enc PROPERTIES FOLDER Draco)
+  set_target_properties(dracodec PROPERTIES FOLDER Draco)
+  set_target_properties(dracoenc PROPERTIES FOLDER Draco)
 
-    set(DRACO_LIB draco)
-    add_definitions(-DENABLE_BUILD_WITH_DRACO)
+  set(DRACO_LIB draco)
+  add_definitions(-DENABLE_BUILD_WITH_DRACO)
 
-    set(DRACO_SRC_PATH externals/draco/src/)
+  set(DRACO_SRC_PATH externals/draco/src/)
 endif()
 
+if(GLTF_MAYA_EXPORTER_BUILD_MAYA_GLTF_EXPORTER
+   OR GLTF_MAYA_EXPORTER_BUILD_MAYA_VRM_EXPORTER)
+  if(WIN32)
+    set(MAYA_INCLUDE_PATH ${GLTF_MAYA_EXPORTER_MAYA_PATH}/include/)
+    set(MAYA_LIBRARY_PATH ${GLTF_MAYA_EXPORTER_MAYA_PATH}/lib/)
+  elseif(APPLE)
+    set(MAYA_INCLUDE_PATH ${GLTF_MAYA_EXPORTER_MAYA_PATH}/include/)
+    set(MAYA_LIBRARY_PATH
+        ${GLTF_MAYA_EXPORTER_MAYA_PATH}/Maya.app/Contents/MacOS)
+  elseif(UNIX)
+    set(MAYA_INCLUDE_PATH ${GLTF_MAYA_EXPORTER_MAYA_PATH}/include/)
+    set(MAYA_LIBRARY_PATH ${GLTF_MAYA_EXPORTER_MAYA_PATH}/lib/)
+  endif()
 
+  set(BUILD_DIR ${CMAKE_BINARY_DIR})
+  message(BUILD_DIR: "${BUILD_DIR}")
+  message(MAYA_INCLUDE_PATH: "${MAYA_INCLUDE_PATH}")
+  message(MAYA_LIBRARY_PATH: "${MAYA_LIBRARY_PATH}")
 
-if(GLTF_MAYA_EXPORTER_BUILD_MAYA_GLTF_EXPORTER OR GLTF_MAYA_EXPORTER_BUILD_MAYA_VRM_EXPORTER)
-    if (WIN32)
-        SET(MAYA_INCLUDE_PATH ${GLTF_MAYA_EXPORTER_MAYA_PATH}/include/)
-        SET(MAYA_LIBRARY_PATH ${GLTF_MAYA_EXPORTER_MAYA_PATH}/lib/)
-    elseif(APPLE)
-        SET(MAYA_INCLUDE_PATH ${GLTF_MAYA_EXPORTER_MAYA_PATH}/include/)
-        SET(MAYA_LIBRARY_PATH ${GLTF_MAYA_EXPORTER_MAYA_PATH}/Maya.app/Contents/MacOS)
-    elseif(UNIX)
-        SET(MAYA_INCLUDE_PATH ${GLTF_MAYA_EXPORTER_MAYA_PATH}/include/)
-        SET(MAYA_LIBRARY_PATH ${GLTF_MAYA_EXPORTER_MAYA_PATH}/lib/)
-    endif()
-
-    set(BUILD_DIR ${CMAKE_BINARY_DIR})
-    message(BUILD_DIR: "${BUILD_DIR}")
-    message(MAYA_INCLUDE_PATH: "${MAYA_INCLUDE_PATH}")
-    message(MAYA_LIBRARY_PATH: "${MAYA_LIBRARY_PATH}")
-
-    # Xgen
-    SET(XGEN_INCLUDE_PATH ${GLTF_MAYA_EXPORTER_MAYA_PATH}/plug-ins/xgen/include)
-    SET(XGEN_LIBRARY_PATH ${GLTF_MAYA_EXPORTER_MAYA_PATH}/plug-ins/xgen/lib/)
+  # Xgen
+  set(XGEN_INCLUDE_PATH ${GLTF_MAYA_EXPORTER_MAYA_PATH}/plug-ins/xgen/include)
+  set(XGEN_LIBRARY_PATH ${GLTF_MAYA_EXPORTER_MAYA_PATH}/plug-ins/xgen/lib/)
 
 endif()
 
 # -- compile options, include and libraries -----------------
 
-set (CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 11)
 
-include_directories(
-    externals/glm/
-    externals/
-    src/
-    ${BUILD_DIR}/
-    ${DRACO_SRC_PATH}
-    ${MAYA_INCLUDE_PATH}
-    ${XGEN_INCLUDE_PATH}
-)
+include_directories(externals/glm/
+                    externals/
+                    src/
+                    ${BUILD_DIR}/
+                    ${DRACO_SRC_PATH}
+                    ${MAYA_INCLUDE_PATH}
+                    ${XGEN_INCLUDE_PATH})
 
 link_directories(${MAYA_LIBRARY_PATH} ${XGEN_LIBRARY_PATH})
 
 # -----------------------------------------------------------
 
 # -- KIL lib ------------------------------------
-add_library( kil STATIC
-    ./src/kil/CopyTextureFile.cpp
-    ./src/kil/CopyTextureFile_GdiPlus.cpp
-    ./src/kil/CopyTextureFile_STB.cpp
-    ./src/kil/ResizeTextureFile.cpp
-)
+add_library(kil
+            STATIC
+            ./src/kil/CopyTextureFile.cpp
+            ./src/kil/CopyTextureFile_GdiPlus.cpp
+            ./src/kil/CopyTextureFile_STB.cpp
+            ./src/kil/ResizeTextureFile.cpp)
 
 # -- KML lib ------------------------------------
 if(WIN32)
-    set(Compatibility ./src/kml/Compatibility.cpp)
+  set(Compatibility ./src/kml/Compatibility.cpp)
 endif()
 
-add_library( kml STATIC
-    ./src/kml/Bound.cpp
-    ./src/kml/CalculateBound.cpp
-    ./src/kml/CalculateNormalsMesh.cpp
-    ${Compatibility}
-    ./src/kml/FlatIndicesMesh.cpp
-    ./src/kml/GLTF2GLB.cpp
-    ./src/kml/glTFExporter.cpp
-    ./src/kml/Material.cpp
-    ./src/kml/Mesh.cpp
-    ./src/kml/Node.cpp
-    ./src/kml/NodeExporter.cpp
-    ./src/kml/Options.cpp
-    ./src/kml/SaveToDraco.cpp
-    ./src/kml/SplitNodeByMaterialID.cpp
-    ./src/kml/Transform.cpp
-    ./src/kml/TriangulateMesh.cpp
-)
+add_library(kml
+            STATIC
+            ./src/kml/Bound.cpp
+            ./src/kml/CalculateBound.cpp
+            ./src/kml/CalculateNormalsMesh.cpp
+            ${Compatibility}
+            ./src/kml/FlatIndicesMesh.cpp
+            ./src/kml/GLTF2GLB.cpp
+            ./src/kml/glTFExporter.cpp
+            ./src/kml/Material.cpp
+            ./src/kml/Mesh.cpp
+            ./src/kml/Node.cpp
+            ./src/kml/NodeExporter.cpp
+            ./src/kml/Options.cpp
+            ./src/kml/SaveToDraco.cpp
+            ./src/kml/SplitNodeByMaterialID.cpp
+            ./src/kml/Transform.cpp
+            ./src/kml/TriangulateMesh.cpp)
 
-target_link_libraries( kml
-                       kil
-                       ${DRACO_LIB})
+target_link_libraries(kml kil ${DRACO_LIB})
 
 # force define for maya header ifdef condition (building for makefile project)
-if (WIN32)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_WIN32 -DNT_PLUGIN")
+if(WIN32)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_WIN32 -DNT_PLUGIN")
 elseif(APPLE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOSMac_")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOSMac_")
 elseif(UNIX)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Dlinux -m64 -g -pthread -D_BOOL -DLINUX -DLINUX_64 -DFUNCPROTO -DREQUIRE_IOSTREAM -fPIC -Wno-deprecated -fno-gnu-keywords")
+  # Maya libraries are compiled with gcc 4.8(with old ABI)
+  # Must disable new CXX ABI(which is default from gcc 5.1) otherwise some symbols failed to resolve when loading a plugin.
+  # https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_dual_abi.html
+  set(
+    CMAKE_CXX_FLAGS
+    "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0 -Dlinux -m64 -g -pthread -D_BOOL -DLINUX -DLINUX_64 -DFUNCPROTO -DREQUIRE_IOSTREAM -fPIC -Wno-deprecated -fno-gnu-keywords"
+    )
 endif()
 
-if (GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD)
+if(GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD)
+  set(GRPC_AS_SUBMODULE On)
+  #
+  # Experimental. Use gRPC for communication
+  #
+
+  if(GRPC_AS_SUBMODULE)
+    # One way to build a projects that uses gRPC is to just include the entire
+    # gRPC project tree via "add_subdirectory". This approach is very simple to
+    # use, but the are some potential disadvantages: * it includes gRPC's
+    # CMakeLists.txt directly into your build script without and that can make
+    # gRPC's internal setting interfere with your own build. * depending on
+    # what's installed on your system, the contents of submodules in gRPC's
+    # third_party/* might need to be available (and there might be additional
+    # prerequisites required to build them). Consider using the gRPC_*_PROVIDER
+    # options to fine-tune the expected behavior.
     #
-    # Experimental. Use flatbuffers for serialization
-    #
+    # A more robust approach to add dependency on gRPC is using cmake's
+    # ExternalProject_Add (see cmake_externalproject/CMakeLists.txt).
 
-    # [flatbuffers]
-    set(FLATBUFFERS_BUILD_TESTS Off CACHE INTERNAL "" FORCE)
-    set(FLATBUFFERS_BUILD_FLATHASH Off CACHE INTERNAL "" FORCE)
-    set(FLATBUFFERS_INSTALL Off CACHE INTERNAL "" FORCE)
+    # Include the gRPC's cmake build (normally grpc source code would live in a
+    # git submodule called "third_party/grpc", but this example lives in the
+    # same repository as gRPC sources, so we just look a few directories up)
+    add_subdirectory(${CMAKE_SOURCE_DIR}/externals/grpc
+                     ${CMAKE_CURRENT_BINARY_DIR}/grpc EXCLUDE_FROM_ALL)
+    message(STATUS "Using gRPC via add_subdirectory.")
 
-    add_subdirectory(${CMAKE_SOURCE_DIR}/externals/flatbuffers)
+    # After using add_subdirectory, we can now use the grpc targets directly
+    # from this build. set(_PROTOBUF_LIBPROTOBUF libprotobuf)
+    # set(_PROTOBUF_PROTOC $<TARGET_FILE:protoc>)
+    set(_GRPC_GRPCPP_UNSECURE grpc++_unsecure)
+    set(_GRPC_CPP_PLUGIN_EXECUTABLE $<TARGET_FILE:grpc_cpp_plugin>)
+  else()
+    # This branch assumes that gRPC and all its dependencies are already
+    # installed on this system, so they can be located by find_package().
 
-    set(EXPORTER_LOGIC_PLUGIN_NAME "exporter_logic")
+    # Find Protobuf installation Looks for protobuf-config.cmake file installed
+    # by Protobuf's cmake installation.
+    set(protobuf_MODULE_COMPATIBLE TRUE)
+    find_package(Protobuf CONFIG REQUIRED)
+    message(STATUS "Using protobuf ${protobuf_VERSION}")
 
-    add_library(${EXPORTER_LOGIC_PLUGIN_NAME} SHARED
-                ./src/hotreload/HotReloadExporterLogic.cc
-                ./src/hotreload/cyhair-writer.cc)
+    set(_PROTOBUF_LIBPROTOBUF protobuf::libprotobuf)
+    set(_PROTOBUF_PROTOC $<TARGET_FILE:protobuf::protoc>)
 
-    # Must link with OpenMaya otherwise undefined symbol error happens when loading dll(Linux only?).
-    target_link_libraries(${EXPORTER_LOGIC_PLUGIN_NAME}
+    # Find gRPC installation Looks for gRPCConfig.cmake file installed by gRPC's
+    # cmake installation.
+    find_package(gRPC CONFIG REQUIRED)
+    message(STATUS "Using gRPC ${gRPC_VERSION}")
+
+    set(_GRPC_GRPCPP_UNSECURE gRPC::grpc++_unsecure)
+    set(_GRPC_CPP_PLUGIN_EXECUTABLE $<TARGET_FILE:gRPC::grpc_cpp_plugin>)
+  endif()
+
+  # Proto file get_filename_component(hotreload_proto
+  # "${CMAKE_SOURCE_DIR}/src/hotreload/hotreload.proto" ABSOLUTE)
+  # get_filename_component(hotreload_proto_path "${hotreload_proto}" PATH)
+
+  # Generated sources set(hotreload_proto_srcs
+  # "${CMAKE_CURRENT_BINARY_DIR}/hotreload.pb.cc") set(hotreload_proto_hdrs
+  # "${CMAKE_CURRENT_BINARY_DIR}/hotreload.pb.h") set(hotreload_grpc_srcs
+  # "${CMAKE_CURRENT_BINARY_DIR}/hotreload.grpc.pb.cc") set(hotreload_grpc_hdrs
+  # "${CMAKE_CURRENT_BINARY_DIR}/hotreload.grpc.pb.h") add_custom_command(
+  # OUTPUT "${hotreload_proto_srcs}" "${hotreload_proto_hdrs}"
+  # "${hotreload_grpc_srcs}" "${hotreload_grpc_hdrs}" COMMAND
+  # ${_PROTOBUF_PROTOC} ARGS --grpc_out "${CMAKE_CURRENT_BINARY_DIR}" --cpp_out
+  # "${CMAKE_CURRENT_BINARY_DIR}" -I "${hotreload_proto_path}" --plugin=protoc-
+  # gen-grpc="${_GRPC_CPP_PLUGIN_EXECUTABLE}" "${hotreload_proto}" DEPENDS
+  # "${hotreload_proto}")
+
+  # Include generated *.pb.h files
+  # include_directories("${CMAKE_CURRENT_BINARY_DIR}")
+
+  # some protobuf headers are still required even when using flatbuffer serialization.
+  include_directories("${CMAKE_SOURCE_DIR}/externals/grpc/third_party/protobuf/src/")
+
+  # gRPC header files.
+  include_directories("${CMAKE_SOURCE_DIR}/externals/grpc/include")
+
+  #
+  # Experimental. Use flatbuffers for serialization
+  #
+
+  # [flatbuffers]
+  set(FLATBUFFERS_BUILD_TESTS Off CACHE INTERNAL "" FORCE)
+  set(FLATBUFFERS_BUILD_FLATHASH Off CACHE INTERNAL "" FORCE)
+  set(FLATBUFFERS_INSTALL Off CACHE INTERNAL "" FORCE)
+
+  add_subdirectory(${CMAKE_SOURCE_DIR}/externals/flatbuffers)
+
+  # Flatbuffer header files.
+  include_directories("${CMAKE_SOURCE_DIR}/externals/flatbuffers/include")
+
+  # Assume `$BUILD/externals/flatbuffers/flatc`
+  set(_FLATBUFFER_FLATC $<TARGET_FILE:flatc>)
+
+  # Flatbuffer file
+  get_filename_component(hotreload_fbs
+                         "${CMAKE_SOURCE_DIR}/src/hotreload/hotreload.fbs"
+                         ABSOLUTE)
+  get_filename_component(hotreload_fbs_path "${hotreload_fbs}" PATH)
+
+  # Generated sources
+  set(hotreload_fb_hdrs "${CMAKE_CURRENT_BINARY_DIR}/hotreload_generated.h")
+  set(hotreload_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/hotreload.grpc.fb.cc")
+  set(hotreload_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/hotreload.grpc.fb.h")
+  add_custom_command(OUTPUT "${hotreload_fb_hdrs}" "${hotreload_grpc_srcs}"
+                            "${hotreload_grpc_hdrs}"
+                     COMMAND ${_FLATBUFFER_FLATC}
+                             ARGS -o "${CMAKE_CURRENT_BINARY_DIR}"
+                             --grpc -c "${hotreload_fbs}"
+                     DEPENDS "${hotreload_fbs}")
+
+  set(EXPORTER_LOGIC_PLUGIN_NAME "exporter_logic")
+
+  add_library(${EXPORTER_LOGIC_PLUGIN_NAME}
+              SHARED
+              ./src/hotreload/HotReloadExporterLogic.cc
+              ./src/hotreload/cyhair-writer.cc
+              ${hotreload_fb_srcs}
+              ${hotreload_grpc_srcs})
+
+  # Must link with OpenMaya otherwise undefined symbol error happens when
+  # loading dll(Linux only?).
+  target_link_libraries(${EXPORTER_LOGIC_PLUGIN_NAME}
+                        ${_GRPC_GRPCPP_UNSECURE}
+                        flatbuffers
                         AdskXGen
                         OpenMaya
-                        OpenMayaAnim  # For SkinCluster
+                        OpenMayaAnim # For SkinCluster
                         OpenMayaUI # For progress window
                         Foundation)
 
-    if(WIN32)
-        set_target_properties(${EXPORTER_LOGIC_PLUGIN_NAME} PROPERTIES PREFIX "" SUFFIX ".dll")
-    elseif(APPLE OR UNIX)
-        set_target_properties(${EXPORTER_LOGIC_PLUGIN_NAME} PROPERTIES PREFIX "" SUFFIX ".so")
-    endif()
+  if(WIN32)
+    set_target_properties(${EXPORTER_LOGIC_PLUGIN_NAME}
+                          PROPERTIES PREFIX
+                                     ""
+                                     SUFFIX
+                                     ".dll")
+  elseif(APPLE OR UNIX)
+    set_target_properties(${EXPORTER_LOGIC_PLUGIN_NAME}
+                          PROPERTIES PREFIX
+                                     ""
+                                     SUFFIX
+                                     ".so")
+  endif()
 
-    SET_TARGET_PROPERTIES(${EXPORTER_LOGIC_PLUGIN_NAME} PROPERTIES LINK_FLAGS "-shared -m64 -g -pthread -pipe -D_BOOL -DLINUX -DLINUX_64 -DFUNCPROTO -DREQUIRE_IOSTREAM -fPIC -Wno-deprecated -fno-gnu-keywords -Wl,-Bsymbolic")
+  set_target_properties(
+    ${EXPORTER_LOGIC_PLUGIN_NAME}
+    PROPERTIES
+      LINK_FLAGS
+      "-shared -m64 -g -pthread -pipe -D_BOOL -DLINUX -DLINUX_64 -DFUNCPROTO -DREQUIRE_IOSTREAM -fPIC -Wno-deprecated -fno-gnu-keywords -Wl,-Bsymbolic"
+    )
 
+  #
+  # Build dummy server
+  #
 
-    add_definitions("-DGLTF_EXPORTER_ENABLE_HOT_RELOAD")
-    list(APPEND EXTRA_GLTF_EXPORTER_SOURCES
-        ./src/hotreload/HotReloadExporter.cc
-        ./src/hotreload/HotReloadExporterPlatform.cc)
-endif (GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD)
+  set(DUMMY_SERVER_SOURCES ./src/dummyserver/dummy-server.cc)
+
+  add_executable(dummy_server
+              ${DUMMY_SERVER_SOURCES}
+              ${hotreload_fb_srcs}
+              ${hotreload_grpc_srcs})
+
+  # Must link with OpenMaya otherwise undefined symbol error happens when
+  # loading dll(Linux only?).
+  target_link_libraries(dummy_server
+                        ${_GRPC_GRPCPP_UNSECURE}
+                        flatbuffers)
+
+  add_definitions("-DGLTF_EXPORTER_ENABLE_HOT_RELOAD")
+  list(APPEND EXTRA_GLTF_EXPORTER_SOURCES ./src/hotreload/HotReloadExporter.cc
+              ./src/hotreload/HotReloadExporterPlatform.cc)
+endif(GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD)
 
 # -- glTF Exporter for maya --------------------
-if (GLTF_MAYA_EXPORTER_BUILD_MAYA_GLTF_EXPORTER)
+if(GLTF_MAYA_EXPORTER_BUILD_MAYA_GLTF_EXPORTER)
 
-    add_library( glTFExporter SHARED
-        ./src/glTFExporter/glTFExporterRegister.cpp
-        ./src/glTFExporter/glTFExporter.cpp
-        ./src/glTFExporter/glTFTranslator.cpp
-        ./src/glTFExporter/murmur3.c
-        ./src/glTFExporter/ProgressWindow.cpp
-        ${EXTRA_GLTF_EXPORTER_SOURCES}
-    )
+  add_library(glTFExporter
+              SHARED
+              ./src/glTFExporter/glTFExporterRegister.cpp
+              ./src/glTFExporter/glTFExporter.cpp
+              ./src/glTFExporter/glTFTranslator.cpp
+              ./src/glTFExporter/murmur3.c
+              ./src/glTFExporter/ProgressWindow.cpp
+              ${EXTRA_GLTF_EXPORTER_SOURCES})
 
-    target_link_libraries( glTFExporter
+  target_link_libraries(glTFExporter
                         kml
                         OpenMaya
-                        OpenMayaAnim  # For SkinCluster
+                        OpenMayaAnim # For SkinCluster
                         OpenMayaUI # For progress window
-                        Foundation
-    )
-    SET_TARGET_PROPERTIES(glTFExporter PROPERTIES PREFIX "")
-    if(WIN32)
-      SET_TARGET_PROPERTIES(glTFExporter PROPERTIES SUFFIX ".mll")
-    elseif(APPLE)
-      SET_TARGET_PROPERTIES(glTFExporter PROPERTIES SUFFIX ".bundle")
-    else()
-      SET_TARGET_PROPERTIES(glTFExporter PROPERTIES SUFFIX ".so")
-      SET_TARGET_PROPERTIES(glTFExporter PROPERTIES LINK_FLAGS "-shared -m64 -g -pthread -pipe -D_BOOL -DLINUX -DLINUX_64 -DFUNCPROTO -DREQUIRE_IOSTREAM -fPIC -Wno-deprecated -fno-gnu-keywords -Wl,-Bsymbolic")
-    endif()
+                        Foundation)
+  set_target_properties(glTFExporter PROPERTIES PREFIX "")
+  if(WIN32)
+    set_target_properties(glTFExporter PROPERTIES SUFFIX ".mll")
+  elseif(APPLE)
+    set_target_properties(glTFExporter PROPERTIES SUFFIX ".bundle")
+  else()
+    set_target_properties(glTFExporter PROPERTIES SUFFIX ".so")
+    set_target_properties(
+      glTFExporter
+      PROPERTIES
+        LINK_FLAGS
+        "-shared -m64 -g -pthread -pipe -D_BOOL -DLINUX -DLINUX_64 -DFUNCPROTO -DREQUIRE_IOSTREAM -fPIC -Wno-deprecated -fno-gnu-keywords -Wl,-Bsymbolic"
+      )
+  endif()
 
-
-    # [VisualStudio] default startup
-    if (WIN32)
-    if (CMAKE_VERSION VERSION_GREATER 3.6.0)
-        set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT glTFExporter)
+  # [VisualStudio] default startup
+  if(WIN32)
+    if(CMAKE_VERSION VERSION_GREATER 3.6.0)
+      set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT glTFExporter)
     endif()
-    endif()
+  endif()
 endif()
 
 # -- VRM Exporter for maya --------------------
-if (GLTF_MAYA_EXPORTER_BUILD_MAYA_VRM_EXPORTER)
+if(GLTF_MAYA_EXPORTER_BUILD_MAYA_VRM_EXPORTER)
 
-    add_library( vrmExporter SHARED
-        ./src/glTFExporter/vrmExporterRegister.cpp
-        ./src/glTFExporter/glTFExporter.cpp
-        ./src/glTFExporter/glTFTranslator.cpp
-        ./src/glTFExporter/murmur3.c
-        ./src/glTFExporter/ProgressWindow.cpp
-    )
+  add_library(vrmExporter
+              SHARED
+              ./src/glTFExporter/vrmExporterRegister.cpp
+              ./src/glTFExporter/glTFExporter.cpp
+              ./src/glTFExporter/glTFTranslator.cpp
+              ./src/glTFExporter/murmur3.c
+              ./src/glTFExporter/ProgressWindow.cpp)
 
-	target_compile_definitions(vrmExporter PUBLIC ENABLE_VRM=1)
+  target_compile_definitions(vrmExporter PUBLIC ENABLE_VRM=1)
 
-    target_link_libraries( vrmExporter
+  target_link_libraries(vrmExporter
                         kml
                         AdskXGen
                         OpenMaya
                         OpenMayaAnim
                         OpenMayaUI
-                        Foundation
-    )
-    SET_TARGET_PROPERTIES(vrmExporter PROPERTIES PREFIX "")
-    if(WIN32)
-      SET_TARGET_PROPERTIES(vrmExporter PROPERTIES SUFFIX ".mll")
-    elseif(APPLE)
-      SET_TARGET_PROPERTIES(vrmExporter PROPERTIES SUFFIX ".bundle")
-    else()
-      SET_TARGET_PROPERTIES(vrmExporter PROPERTIES SUFFIX ".so")
-      SET_TARGET_PROPERTIES(vrmExporter PROPERTIES LINK_FLAGS "-shared -m64 -g -pthread -pipe -D_BOOL -DLINUX -DLINUX_64 -DFUNCPROTO -DREQUIRE_IOSTREAM -fPIC -Wno-deprecated -fno-gnu-keywords -Wl,-Bsymbolic")
-    endif()
+                        Foundation)
+  set_target_properties(vrmExporter PROPERTIES PREFIX "")
+  if(WIN32)
+    set_target_properties(vrmExporter PROPERTIES SUFFIX ".mll")
+  elseif(APPLE)
+    set_target_properties(vrmExporter PROPERTIES SUFFIX ".bundle")
+  else()
+    set_target_properties(vrmExporter PROPERTIES SUFFIX ".so")
+    set_target_properties(
+      vrmExporter
+      PROPERTIES
+        LINK_FLAGS
+        "-shared -m64 -g -pthread -pipe -D_BOOL -DLINUX -DLINUX_64 -DFUNCPROTO -DREQUIRE_IOSTREAM -fPIC -Wno-deprecated -fno-gnu-keywords -Wl,-Bsymbolic"
+      )
+  endif()
 
 endif()
 
 # -- cpp interface and test -----------------------------
 
-if (GLTF_MAYA_EXPORTER_BUILD_CPP_INTERFACE)
+if(GLTF_MAYA_EXPORTER_BUILD_CPP_INTERFACE)
 
-    # -- dll interface --
-    add_library( glTFCppExporterLib SHARED
-        ./src/cppexporter/main.cpp
-    )
-    if (ANDROID)
-        set(androidlibs
-            log
-            m)
-    endif()
-    target_link_libraries( glTFCppExporterLib
-                           kml
-                           ${androidlibs}
-    )
+  # -- dll interface --
+  add_library(glTFCppExporterLib SHARED ./src/cppexporter/main.cpp)
+  if(ANDROID)
+    set(androidlibs log m)
+  endif()
+  target_link_libraries(glTFCppExporterLib kml ${androidlibs})
 
-    # -- interface test ---
-    add_executable( glTFCppExporterLibTest
-        ./src/cppexporter/test/test.cpp
-    )
-    target_link_libraries( glTFCppExporterLibTest
-                           glTFCppExporterLib
-    )
+  # -- interface test ---
+  add_executable(glTFCppExporterLibTest ./src/cppexporter/test/test.cpp)
+  target_link_libraries(glTFCppExporterLibTest glTFCppExporterLib)
 
-    # [VisualStudio] default startup
-    if (WIN32)
-    if (CMAKE_VERSION VERSION_GREATER 3.6.0)
-        set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT glTFCppExporterLibTest)
+  # [VisualStudio] default startup
+  if(WIN32)
+    if(CMAKE_VERSION VERSION_GREATER 3.6.0)
+      set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT glTFCppExporterLibTest)
     endif()
-    endif()
+  endif()
 endif()

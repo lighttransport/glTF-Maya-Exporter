@@ -1,0 +1,13 @@
+table CyhairReply {
+  message:string;
+}
+
+table CyhairRequest {
+  // Cyhair binary data
+  data:[ubyte];
+}
+
+rpc_service Greeter {
+  SendCyhair(CyhairRequest):CyhairReply;
+  //SayManyHellos(ManyHellosRequest):HelloReply (streaming: "server");
+}
