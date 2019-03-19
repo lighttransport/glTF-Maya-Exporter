@@ -69,6 +69,11 @@ Optional
   * Alpha channel image
 
 
+## Texture parameters
+
+* color space(sRGB, RAW, ...)
+* color balance(colorGain, alhaGain, etc)
+
 
 
 

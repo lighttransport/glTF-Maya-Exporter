@@ -1542,7 +1542,7 @@ static void GetMaterials(std::vector<MObject>& shaders, std::vector<int>& faceIn
     }
 }
 
-static MColor getColor(MFnDependencyNode& node, const char* name)
+static MColor getColor(const MFnDependencyNode& node, const char* name)
 {
     MPlug p;
     MString r = MString(name) + "R";
@@ -1560,6 +1560,40 @@ static MColor getColor(MFnDependencyNode& node, const char* name)
     p.getValue(color.a);
     p = node.findPlug(name);
     return color;
+}
+
+//
+// Get ColorBalance attribute of the texture node.
+//
+static void getColorBalance(const MFnDependencyNode& texNode, kml::ColorBalance* colorBalance)
+{
+    // TODO(LTE): Support textured parameter.
+    colorBalance->m_exposure = texNode.findPlug("exposure").asFloat();
+
+    {
+        MColor color = getColor(texNode, "defaultColor");
+        colorBalance->m_defaultColor[0] = color.r;
+        colorBalance->m_defaultColor[1] = color.g;
+        colorBalance->m_defaultColor[2] = color.b;
+    }
+
+    {
+        MColor color = getColor(texNode, "colorGain");
+        colorBalance->m_colorGain[0] = color.r;
+        colorBalance->m_colorGain[1] = color.g;
+        colorBalance->m_colorGain[2] = color.b;
+    }
+
+    {
+        MColor color = getColor(texNode, "colorOffset");
+        colorBalance->m_colorOffset[0] = color.r;
+        colorBalance->m_colorOffset[1] = color.g;
+        colorBalance->m_colorOffset[2] = color.b;
+    }
+
+    colorBalance->m_alphaGain = texNode.findPlug("alphaGain").asFloat();
+    colorBalance->m_alphaOffset = texNode.findPlug("alphaOffset").asFloat();
+    colorBalance->m_alphaIsLuminance = texNode.findPlug("alphaIsLuminance").asBool();
 }
 
 static bool getTextureAndColor(const MFnDependencyNode& node, const MString& name, std::shared_ptr<kml::Texture>& tex, MColor& color)
@@ -1647,10 +1681,17 @@ static bool getTextureAndColor(const MFnDependencyNode& node, const MString& nam
                 MString colorSpaceStr;
                 colorSpacePlug.getValue(colorSpaceStr);
                 const std::string colorSpace = colorSpaceStr.asChar();
-                if (!colorSpace.empty()) {
+                if (!colorSpace.empty())
+                {
                     tex->SetColorSpace(colorSpace);
                 }
-                
+
+                // Color balance
+                {
+                    kml::ColorBalance colorBalance;
+                    getColorBalance(texNode, &colorBalance);
+                    tex->SetColorBalance(colorBalance);
+                }
 
                 // if material has texture, set color(1,1,1)
                 color.r = 1.0f;
@@ -1777,7 +1818,8 @@ static bool isAiStandardHairShader(const MFnDependencyNode& materialDependencyNo
            materialDependencyNode.hasAttribute("shift");
 }
 
-static bool addTextureIfPresent(const std::string &plugName, const std::string &texName, const MFnDependencyNode &ainode, std::shared_ptr<kml::Material> &mat) {
+static bool addTextureIfPresent(const std::string& plugName, const std::string& texName, const MFnDependencyNode& ainode, std::shared_ptr<kml::Material>& mat)
+{
 
     MColor dummy;
     std::shared_ptr<kml::Texture> tex(nullptr);
@@ -1861,7 +1903,6 @@ static bool storeAiStandardSurfaceShader(std::shared_ptr<kml::Material> mat, con
     addTextureIfPresent("specularRotation", "ai_specularRotationTex", ainode, mat);
     addTextureIfPresent("specularAnisotropy", "ai_specularAnisotropyTex", ainode, mat);
 
-
     // transmission
     const float transmissionWeight = ainode.findPlug("transmission").asFloat();
     const float transmissionColorR = ainode.findPlug("transmissionColorR").asFloat();
@@ -1924,17 +1965,16 @@ static bool storeAiStandardSurfaceShader(std::shared_ptr<kml::Material> mat, con
     const int subsurfaceType = ainode.findPlug("subsurfaceType").asInt();
     const float subsurfaceAnisotropy = ainode.findPlug("subsurfaceAnisotropy").asFloat();
     {
-      MColor subsurfaceCol;
-      std::shared_ptr<kml::Texture> subsurfaceTex(nullptr);
-      if (getTextureAndColor(ainode, MString("subsurfaceColor"), subsurfaceTex, subsurfaceCol))
-      {
-          if (subsurfaceTex)
-          {
-              mat->SetTexture("ai_subsurfaceColor", subsurfaceTex);
-          }
-      }
+        MColor subsurfaceCol;
+        std::shared_ptr<kml::Texture> subsurfaceTex(nullptr);
+        if (getTextureAndColor(ainode, MString("subsurfaceColor"), subsurfaceTex, subsurfaceCol))
+        {
+            if (subsurfaceTex)
+            {
+                mat->SetTexture("ai_subsurfaceColor", subsurfaceTex);
+            }
+        }
     }
-
 
     mat->SetFloat("ai_subsurfaceWeight", subsurfaceWeight);
     mat->SetFloat("ai_subsurfaceColorR", subsurfaceColorR);
@@ -2080,13 +2120,13 @@ static bool storeAiStandardHairShader(std::shared_ptr<kml::Material> mat, const 
     MColor baseCol;
     std::shared_ptr<kml::Texture> baseColorTex(nullptr);
     {
-      if (getTextureAndColor(ainode, MString("baseColor"), baseColorTex, baseCol))
-      {
-          if (baseColorTex)
-          {
-              mat->SetTexture("ai_baseColor", baseColorTex);
-          }
-      }
+        if (getTextureAndColor(ainode, MString("baseColor"), baseColorTex, baseCol))
+        {
+            if (baseColorTex)
+            {
+                mat->SetTexture("ai_baseColor", baseColorTex);
+            }
+        }
     }
     mat->SetFloat("ai_baseWeight", baseWeight);
     mat->SetFloat("ai_baseColorR", baseColorR);
@@ -2103,30 +2143,30 @@ static bool storeAiStandardHairShader(std::shared_ptr<kml::Material> mat, const 
 
     // Tint
     {
-      const float specularTintR = ainode.findPlug("specularTintR").asFloat();
-      const float specularTintG = ainode.findPlug("specularTintG").asFloat();
-      const float specularTintB = ainode.findPlug("specularTintB").asFloat();
-      mat->SetFloat("ai_specularTintR", specularTintR);
-      mat->SetFloat("ai_specularTintG", specularTintG);
-      mat->SetFloat("ai_specularTintB", specularTintB);
+        const float specularTintR = ainode.findPlug("specularTintR").asFloat();
+        const float specularTintG = ainode.findPlug("specularTintG").asFloat();
+        const float specularTintB = ainode.findPlug("specularTintB").asFloat();
+        mat->SetFloat("ai_specularTintR", specularTintR);
+        mat->SetFloat("ai_specularTintG", specularTintG);
+        mat->SetFloat("ai_specularTintB", specularTintB);
     }
 
     {
-      const float specular2TintR = ainode.findPlug("specular2TintR").asFloat();
-      const float specular2TintG = ainode.findPlug("specular2TintG").asFloat();
-      const float specular2TintB = ainode.findPlug("specular2TintB").asFloat();
-      mat->SetFloat("ai_specular2TintR", specular2TintR);
-      mat->SetFloat("ai_specular2TintG", specular2TintG);
-      mat->SetFloat("ai_specular2TintB", specular2TintB);
+        const float specular2TintR = ainode.findPlug("specular2TintR").asFloat();
+        const float specular2TintG = ainode.findPlug("specular2TintG").asFloat();
+        const float specular2TintB = ainode.findPlug("specular2TintB").asFloat();
+        mat->SetFloat("ai_specular2TintR", specular2TintR);
+        mat->SetFloat("ai_specular2TintG", specular2TintG);
+        mat->SetFloat("ai_specular2TintB", specular2TintB);
     }
 
     {
-      const float transmissionTintR = ainode.findPlug("transmissionTintR").asFloat();
-      const float transmissionTintG = ainode.findPlug("transmissionTintG").asFloat();
-      const float transmissionTintB = ainode.findPlug("transmissionTintB").asFloat();
-      mat->SetFloat("ai_transmissionTintR", transmissionTintR);
-      mat->SetFloat("ai_transmissionTintG", transmissionTintG);
-      mat->SetFloat("ai_transmissionTintB", transmissionTintB);
+        const float transmissionTintR = ainode.findPlug("transmissionTintR").asFloat();
+        const float transmissionTintG = ainode.findPlug("transmissionTintG").asFloat();
+        const float transmissionTintB = ainode.findPlug("transmissionTintB").asFloat();
+        mat->SetFloat("ai_transmissionTintR", transmissionTintR);
+        mat->SetFloat("ai_transmissionTintG", transmissionTintG);
+        mat->SetFloat("ai_transmissionTintB", transmissionTintB);
     }
 
     // Diffuse
@@ -2135,15 +2175,15 @@ static bool storeAiStandardHairShader(std::shared_ptr<kml::Material> mat, const 
     const float diffuseColorG = ainode.findPlug("diffuseColorG").asFloat();
     const float diffuseColorB = ainode.findPlug("diffuseColorB").asFloat();
     {
-      MColor diffuseCol;
-      std::shared_ptr<kml::Texture> diffuseColorTex(nullptr);
-      if (getTextureAndColor(ainode, MString("diffuseColor"), diffuseColorTex, diffuseCol))
-      {
-          if (diffuseColorTex)
-          {
-              mat->SetTexture("ai_diffuseColor", diffuseColorTex);
-          }
-      }
+        MColor diffuseCol;
+        std::shared_ptr<kml::Texture> diffuseColorTex(nullptr);
+        if (getTextureAndColor(ainode, MString("diffuseColor"), diffuseColorTex, diffuseCol))
+        {
+            if (diffuseColorTex)
+            {
+                mat->SetTexture("ai_diffuseColor", diffuseColorTex);
+            }
+        }
     }
 
     // Emissive
@@ -2297,11 +2337,11 @@ static std::shared_ptr<kml::Material> ConvertMaterial(MObject& shaderObject)
             if (isAiStandardHairShader(mpa[k].node()))
             {
                 storeAiStandardHairShader(mat, mpa[k].node());
-            } else if (isAiStandardSurfaceShader(mpa[k].node()))
+            }
+            else if (isAiStandardSurfaceShader(mpa[k].node()))
             {
                 storeAiStandardSurfaceShader(mat, mpa[k].node());
             }
-
         }
     }
 
@@ -2543,13 +2583,13 @@ static MStatus WriteGLTF(
                     std::shared_ptr<kml::Material> mat = ConvertMaterial(shaders[i]);
 
                     {
-                      // FIXME(LTE): Transfer mesh's doubleSided property to
-                      // material's doubleSided.
-                      // This may give wrong result when a material is shared
-                      // with multiple meshes, whose doubleSided propery
-                      // differs. 
+                        // FIXME(LTE): Transfer mesh's doubleSided property to
+                        // material's doubleSided.
+                        // This may give wrong result when a material is shared
+                        // with multiple meshes, whose doubleSided propery
+                        // differs.
 
-                      mat->SetInteger("doubleSided", node->GetMesh()->double_sided ? 1 : 0);
+                        mat->SetInteger("doubleSided", node->GetMesh()->double_sided ? 1 : 0);
                     }
 
                     {

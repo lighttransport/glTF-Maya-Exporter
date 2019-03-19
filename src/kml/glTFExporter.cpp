@@ -1278,7 +1278,7 @@ namespace kml
             return -1;
         }
 
-        static int FindImageIndex(const std::vector< std::string >& image_vec, const std::string& image_path)
+        static int FindImageIndex(const std::vector<std::string>& image_vec, const std::string& image_path)
         {
             for (int i = 0; i < (int)image_vec.size(); i++)
             {
@@ -1359,7 +1359,7 @@ namespace kml
             return ar;
         }
 
-        static bool AddTextureIfPresent(picojson::object &LTE_pbr_material /* inout */, const std::string &texName, const std::string &matName, const std::shared_ptr<kml::Material> &mat, const std::vector<std::shared_ptr<kml::Texture> >& texture_vec)
+        static bool AddTextureIfPresent(picojson::object& LTE_pbr_material /* inout */, const std::string& texName, const std::string& matName, const std::shared_ptr<kml::Material>& mat, const std::vector<std::shared_ptr<kml::Texture> >& texture_vec)
         {
             std::shared_ptr<kml::Texture> tex = mat->GetTexture(texName);
             if (tex)
@@ -1497,24 +1497,23 @@ namespace kml
             LTE_pbr_material["subsurfaceScale"] = picojson::value(mat->GetFloat("ai_subsurfaceScale"));
             LTE_pbr_material["subsurfaceAnisotropy"] = picojson::value(mat->GetFloat("ai_subsurfaceAnisotropy"));
             {
-              std::shared_ptr<kml::Texture> ai_subsurfaceColorTex = mat->GetTexture("ai_subsurfaceColor");
-              if (ai_subsurfaceColorTex)
-              {
-                  const int nIndex = FindTextureIndex(texture_vec, ai_subsurfaceColorTex);
-                  if (nIndex >= 0)
-                  {
-                      picojson::object subsurfaceColorTexture;
-                      subsurfaceColorTexture["index"] = picojson::value((double)nIndex);
-                      LTE_pbr_material["subsurfaceColorTexture"] = picojson::value(subsurfaceColorTexture);
-                  }
-              }
+                std::shared_ptr<kml::Texture> ai_subsurfaceColorTex = mat->GetTexture("ai_subsurfaceColor");
+                if (ai_subsurfaceColorTex)
+                {
+                    const int nIndex = FindTextureIndex(texture_vec, ai_subsurfaceColorTex);
+                    if (nIndex >= 0)
+                    {
+                        picojson::object subsurfaceColorTexture;
+                        subsurfaceColorTexture["index"] = picojson::value((double)nIndex);
+                        LTE_pbr_material["subsurfaceColorTexture"] = picojson::value(subsurfaceColorTexture);
+                    }
+                }
             }
             AddTextureIfPresent(LTE_pbr_material, "ai_subsurfaceWeightTex", "subsurfaceWeightTexture", mat, texture_vec);
             // no `Tex` prefix for input name.
             AddTextureIfPresent(LTE_pbr_material, "ai_subsurfaceRadius", "subsurfaceRadiusTexture", mat, texture_vec);
             AddTextureIfPresent(LTE_pbr_material, "ai_subsurfaceScaleTex", "subsurfaceScaleTexture", mat, texture_vec);
             AddTextureIfPresent(LTE_pbr_material, "ai_subsurfaceAnisotropyTex", "subsurfaceAnisotropyTexture", mat, texture_vec);
-
 
             // Coat
             picojson::array coatColor;
@@ -1616,25 +1615,25 @@ namespace kml
 
             // tint
             {
-              picojson::array specularTintFactor;
-              specularTintFactor.push_back(picojson::value(mat->GetFloat("ai_specularTintR")));
-              specularTintFactor.push_back(picojson::value(mat->GetFloat("ai_specularTintG")));
-              specularTintFactor.push_back(picojson::value(mat->GetFloat("ai_specularTintB")));
-              LTE_hair_material["specularTint"] = picojson::value(specularTintFactor);
+                picojson::array specularTintFactor;
+                specularTintFactor.push_back(picojson::value(mat->GetFloat("ai_specularTintR")));
+                specularTintFactor.push_back(picojson::value(mat->GetFloat("ai_specularTintG")));
+                specularTintFactor.push_back(picojson::value(mat->GetFloat("ai_specularTintB")));
+                LTE_hair_material["specularTint"] = picojson::value(specularTintFactor);
             }
             {
-              picojson::array specular2TintFactor;
-              specular2TintFactor.push_back(picojson::value(mat->GetFloat("ai_specular2TintR")));
-              specular2TintFactor.push_back(picojson::value(mat->GetFloat("ai_specular2TintG")));
-              specular2TintFactor.push_back(picojson::value(mat->GetFloat("ai_specular2TintB")));
-              LTE_hair_material["specular2Tint"] = picojson::value(specular2TintFactor);
+                picojson::array specular2TintFactor;
+                specular2TintFactor.push_back(picojson::value(mat->GetFloat("ai_specular2TintR")));
+                specular2TintFactor.push_back(picojson::value(mat->GetFloat("ai_specular2TintG")));
+                specular2TintFactor.push_back(picojson::value(mat->GetFloat("ai_specular2TintB")));
+                LTE_hair_material["specular2Tint"] = picojson::value(specular2TintFactor);
             }
             {
-              picojson::array transmissionTintFactor;
-              transmissionTintFactor.push_back(picojson::value(mat->GetFloat("ai_transmissionTintR")));
-              transmissionTintFactor.push_back(picojson::value(mat->GetFloat("ai_transmissionTintG")));
-              transmissionTintFactor.push_back(picojson::value(mat->GetFloat("ai_transmissionTintB")));
-              LTE_hair_material["transmissionTint"] = picojson::value(transmissionTintFactor);
+                picojson::array transmissionTintFactor;
+                transmissionTintFactor.push_back(picojson::value(mat->GetFloat("ai_transmissionTintR")));
+                transmissionTintFactor.push_back(picojson::value(mat->GetFloat("ai_transmissionTintG")));
+                transmissionTintFactor.push_back(picojson::value(mat->GetFloat("ai_transmissionTintB")));
+                LTE_hair_material["transmissionTint"] = picojson::value(transmissionTintFactor);
             }
 
             // Emissive
@@ -1679,11 +1678,14 @@ namespace kml
 
             bool isHairMaterial = (mat->GetInteger("aiStandardHair") == 1) ? true : false;
 
-            if (isHairMaterial) {
-              extensions["LTE_aiStandardHair_material"] = createLTE_hair_material(mat, texture_vec);
-            } else {
-              // Fallback to default PBR material.
-              extensions["LTE_PBR_material"] = createLTE_pbr_material(mat, texture_vec);
+            if (isHairMaterial)
+            {
+                extensions["LTE_aiStandardHair_material"] = createLTE_hair_material(mat, texture_vec);
+            }
+            else
+            {
+                // Fallback to default PBR material.
+                extensions["LTE_PBR_material"] = createLTE_pbr_material(mat, texture_vec);
             }
 
             return picojson::value(extensions);
@@ -1692,6 +1694,53 @@ namespace kml
         static picojson::array GetMatrixAsArray(const glm::mat4& mat)
         {
             return GetFloatAsArray(glm::value_ptr(mat), 16);
+        }
+
+        static picojson::object serializeTextureParameterExtras(const std::shared_ptr<kml::Texture>& tex)
+        {
+            picojson::object extras;
+
+            // Color space
+            extras["colorSpace"] = picojson::value(tex->GetColorSpace());
+
+            // Color balance
+            const ColorBalance& colorBalance = tex->GetColorBalance();
+
+            extras["exposure"] = picojson::value(colorBalance.m_exposure);
+
+            {
+                picojson::array col;
+                col.push_back(picojson::value(colorBalance.m_defaultColor[0]));
+                col.push_back(picojson::value(colorBalance.m_defaultColor[1]));
+                col.push_back(picojson::value(colorBalance.m_defaultColor[2]));
+
+                extras["defaultColor"] = picojson::value(col);
+            }
+
+            {
+                picojson::array col;
+                col.push_back(picojson::value(colorBalance.m_colorGain[0]));
+                col.push_back(picojson::value(colorBalance.m_colorGain[1]));
+                col.push_back(picojson::value(colorBalance.m_colorGain[2]));
+
+                extras["colorGain"] = picojson::value(col);
+            }
+
+            {
+                picojson::array col;
+                col.push_back(picojson::value(colorBalance.m_colorOffset[0]));
+                col.push_back(picojson::value(colorBalance.m_colorOffset[1]));
+                col.push_back(picojson::value(colorBalance.m_colorOffset[2]));
+
+                extras["colorOffset"] = picojson::value(col);
+            }
+
+            extras["alphaGain"] = picojson::value(colorBalance.m_alphaGain);
+            extras["alphaOffset"] = picojson::value(colorBalance.m_alphaOffset);
+
+            extras["alphaIsLuminance"] = picojson::value(colorBalance.m_alphaIsLuminance);
+
+            return extras;
         }
 
         static bool NodeToGLTF(
@@ -2081,15 +2130,14 @@ namespace kml
                     std::string imagePath = in_tex->GetFilePath();
 
                     int nIndex = FindImageIndex(image_vec, imagePath);
-                    if(nIndex >= 0)
+                    if (nIndex >= 0)
                     {
                         picojson::object texture;
                         texture["sampler"] = picojson::value((double)sampler->GetIndex());
                         texture["source"] = picojson::value((double)nIndex);
 
-                        // LTE ext: colorspace as extra attribute
-                        picojson::object extras;
-                        extras["colorSpace"] = picojson::value(in_tex->GetColorSpace());
+                        // LTE ext: color correction and colorspace as extra attribute
+                        picojson::object extras = serializeTextureParameterExtras(in_tex);
                         texture["extras"] = picojson::value(extras);
 
                         textures.push_back(picojson::value(texture));
@@ -2733,7 +2781,7 @@ namespace kml
                     {
                         picojson::object textureProperties;
                         //textureProperties["_MainTex"] = picojson::value(0.0);
-                        /*    
+                        /*
                             "_MainTex": 0,                 // TODO
                             "_ShadeTexture" : 0,
                             "_SphereAdd" : 1,
