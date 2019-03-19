@@ -3,6 +3,7 @@
 #define _KML_TEXTURE_H_
 
 #include <algorithm>
+#include <array>
 #include <map>
 #include <sstream>
 #include <string>
@@ -10,6 +11,52 @@
 
 namespace kml
 {
+    class ColorBalance
+    {
+    public:
+        ColorBalance() : m_exposure(0.0f),
+                         m_defaultColor({0.5f, 0.5f, 0.5f}),
+                         m_colorGain({0.5f, 0.5f, 0.5f}),
+                         m_colorOffset({0.0f, 0.0f, 0.0f}),
+                         m_alphaGain(1.0f),
+                         m_alphaOffset(0.0f),
+                         m_alphaIsLuminance(false){};
+
+        ~ColorBalance(){};
+
+        ColorBalance(const ColorBalance& rh)
+        {
+            m_exposure = rh.m_exposure;
+            m_defaultColor = rh.m_defaultColor;
+            m_colorGain = rh.m_colorGain;
+            m_colorOffset = rh.m_colorOffset;
+            m_alphaGain = rh.m_alphaGain;
+            m_alphaOffset = rh.m_alphaOffset;
+            m_alphaIsLuminance = rh.m_alphaIsLuminance;
+        }
+
+        ColorBalance& operator=(const ColorBalance& rh)
+        {
+            m_exposure = rh.m_exposure;
+            m_defaultColor = rh.m_defaultColor;
+            m_colorGain = rh.m_colorGain;
+            m_colorOffset = rh.m_colorOffset;
+            m_alphaGain = rh.m_alphaGain;
+            m_alphaOffset = rh.m_alphaOffset;
+            m_alphaIsLuminance = rh.m_alphaIsLuminance;
+
+            return (*this);
+        }
+
+        float m_exposure;                    // EV
+        std::array<float, 3> m_defaultColor; // in linear space RGB
+        std::array<float, 3> m_colorGain;    // in linear space RGB
+        std::array<float, 3> m_colorOffset;  // in linear space RGB
+        float m_alphaGain;
+        float m_alphaOffset;
+        bool m_alphaIsLuminance;
+    };
+
     class Texture
     {
     public:
@@ -53,6 +100,8 @@ namespace kml
             m_filterV = rh.m_filterV;
             m_udimmode = rh.m_udimmode;
             m_udimIDs = rh.m_udimIDs;
+
+            m_colorBalance = rh.m_colorBalance;
         }
 
         Texture* clone()
@@ -228,12 +277,24 @@ namespace kml
             m_exist = bExist;
         }
 
-        void SetColorSpace(const std::string &colorSpace) {
+        void SetColorSpace(const std::string& colorSpace)
+        {
             m_colorSpace = colorSpace;
         }
 
-        const std::string &GetColorSpace() const {
+        const std::string& GetColorSpace() const
+        {
             return m_colorSpace;
+        }
+
+        void SetColorBalance(const ColorBalance& colorBalance)
+        {
+            m_colorBalance = colorBalance;
+        }
+
+        const ColorBalance GetColorBalance() const
+        {
+            return m_colorBalance;
         }
 
     protected:
@@ -248,6 +309,8 @@ namespace kml
         bool m_udimmode;
         std::vector<int> m_udimIDs;
         bool m_exist;
+
+        ColorBalance m_colorBalance;
     };
 } // namespace kml
 
