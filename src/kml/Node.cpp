@@ -157,4 +157,14 @@ namespace kml
         skins.push_back(skin);
     }
 
+    void Node::AddHairAsExtra(const std::pair<std::string, int>& name_matid_pair)
+    {
+        hair_extras.push_back(name_matid_pair);
+    }
+
+    const std::vector<std::pair<std::string, int> >& Node::GetHairExtras() const
+    {
+        return hair_extras;
+    }
+
 } // namespace kml

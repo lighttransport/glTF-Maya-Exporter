@@ -1770,9 +1770,53 @@ namespace kml
                     nodes_.push_back(picojson::value((double)0));
                 }
                 scene["nodes"] = picojson::value(nodes_);
+
+                // Hair extras. Assume single scene in .glTF
+                // Assume root node has hair extras
+                const std::vector<std::pair<std::string, int>> &hairs = node->GetHairExtras();
+                fprintf(stderr, "hair extra. %d\n", int(hairs.size()));
+                if (hairs.size() > 0)
+                {
+
+                    picojson::object o;
+
+                    for (size_t j = 0; j < hairs.size(); j++) {
+                        // FIXME(LTE): Use (unique) node name
+                        std::string name = "hair_" + std::to_string(j);
+
+                        picojson::object item;
+                        item["cyhair_filename"] = picojson::value(hairs[j].first);
+                        // NOTE(LTE): hairs[j].second is a ShaderID.
+
+
+                        int matid = -1;
+                        // Use the first hair material(aiStandardHair).
+                        // TODO(LTE): Find material index assigned to this hair object.
+                        {
+                            const auto& materials = node->GetMaterials();
+                            for (size_t m = 0; m < materials.size(); m++) {
+                                if (materials[m]->GetInteger("aiStandardHair")) {
+                                    matid = m;
+                                }
+                            }
+                        }
+
+                        item["material"] = picojson::value(double(matid));
+
+                        o[name] = picojson::value(item);
+
+                    }
+
+                    picojson::object hairs;
+                    hairs["hairs"] = picojson::value(o);
+
+                    scene["extras"] = picojson::value(hairs);
+                }
+
                 ar.push_back(picojson::value(scene));
 
                 root["scenes"] = picojson::value(ar);
+
             }
 
             // Nodes

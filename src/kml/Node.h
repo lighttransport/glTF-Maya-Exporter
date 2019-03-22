@@ -39,6 +39,8 @@ namespace kml
         const std::vector<std::shared_ptr<Skin> >& GetSkins() const;
         const std::vector<std::shared_ptr<Node> >& GetChildren() const;
 
+        const std::vector<std::pair<std::string, int> >& GetHairExtras() const;
+
     public:
         void SetTransform(const std::shared_ptr<Transform>& trans);
         void SetPath(const std::string& path);
@@ -50,6 +52,11 @@ namespace kml
         void ClearChildren();
         void AddAnimation(const std::shared_ptr<Animation>& anim);
         void AddSkin(const std::shared_ptr<Skin>& skin);
+
+        ///
+        /// Add meta information of hair node info
+        ///
+        void AddHairAsExtra(const std::pair<std::string, int> &name_id);
 
         void SetVisiblity(bool isVisible);
         bool GetVisibility() const;
@@ -70,6 +77,8 @@ namespace kml
         std::vector<std::shared_ptr<Animation> > animations;
         std::vector<std::shared_ptr<Skin> > skins;
         std::map<std::string, int> iprops;
+
+        std::vector<std::pair<std::string, int>> hair_extras; // (hair name, material id)
     };
 } // namespace kml
 
