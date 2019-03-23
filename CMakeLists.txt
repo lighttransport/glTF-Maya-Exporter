@@ -12,6 +12,8 @@ option(GLTF_MAYA_EXPORTER_BUILD_MAYA_GLTF_EXPORTER "Build Maya glTF Exporter"
 option(GLTF_MAYA_EXPORTER_BUILD_MAYA_VRM_EXPORTER "Build Maya VRM Exporter" ON)
 option(GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD
        "Build with hot reload feature(for developer)" ON)
+option(GLTF_MAYA_EXPORTER_BUILD_SERIALIZER
+       "Build messegae serializer(for developer)" OFF)
 option(GLTF_MAYA_EXPORTER_BUILD_CPP_INTERFACE "Build cpp interface and test"
        OFF)
 option(GLTF_MAYA_EXPORTER_WITH_CCACHE
@@ -122,6 +124,11 @@ if(GLTF_MAYA_EXPORTER_BUILD_MAYA_GLTF_EXPORTER
   # Xgen
   set(XGEN_INCLUDE_PATH ${GLTF_MAYA_EXPORTER_MAYA_PATH}/plug-ins/xgen/include)
   set(XGEN_LIBRARY_PATH ${GLTF_MAYA_EXPORTER_MAYA_PATH}/plug-ins/xgen/lib/)
+  if(WIN32)
+    set(XGEN_LIBS libAdskXGen)
+  else()
+    set(XGEN_LIBS AdskXGen)
+  endif(WIN32)
 
 endif()
 
@@ -195,6 +202,11 @@ if(GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD)
   #
   # Experimental. Use gRPC for communication
   #
+
+  if (WIN32)
+    # For gRPC
+    add_definitions("-D_WIN32_WINNT=0x600")
+  endif(WIN32)
 
   if(GRPC_AS_SUBMODULE)
     # One way to build a projects that uses gRPC is to just include the entire
@@ -317,7 +329,7 @@ if(GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD)
   target_link_libraries(${EXPORTER_LOGIC_PLUGIN_NAME}
                         ${_GRPC_GRPCPP_UNSECURE}
                         flatbuffers
-                        AdskXGen
+                        ${XGEN_LIBS}
                         OpenMaya
                         OpenMayaAnim # For SkinCluster
                         OpenMayaUI # For progress window
@@ -347,23 +359,29 @@ if(GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD)
   #
   # Build dummy server
   #
+  if (WIN32)
+    # Don't build dummy server for a while.
+    # If we need to build dummy server on windows, we must set _WIN32_WINNT >= 0x600
+    # add_definitions("-D_WIN32_WINNT=0x600")
+  else()
+    set(DUMMY_SERVER_SOURCES ./src/dummyserver/dummy-server.cc)
 
-  set(DUMMY_SERVER_SOURCES ./src/dummyserver/dummy-server.cc)
+    add_executable(dummy_server
+                ${DUMMY_SERVER_SOURCES}
+                ${hotreload_fb_srcs}
+                ${hotreload_grpc_srcs})
 
-  add_executable(dummy_server
-              ${DUMMY_SERVER_SOURCES}
-              ${hotreload_fb_srcs}
-              ${hotreload_grpc_srcs})
+    # Must link with OpenMaya otherwise undefined symbol error happens when
+    # loading dll(Linux only?).
+    target_link_libraries(dummy_server
+                          ${_GRPC_GRPCPP_UNSECURE}
+                          flatbuffers)
 
-  # Must link with OpenMaya otherwise undefined symbol error happens when
-  # loading dll(Linux only?).
-  target_link_libraries(dummy_server
-                        ${_GRPC_GRPCPP_UNSECURE}
-                        flatbuffers)
+    add_definitions("-DGLTF_EXPORTER_ENABLE_HOT_RELOAD")
+    list(APPEND EXTRA_GLTF_EXPORTER_SOURCES ./src/hotreload/HotReloadExporter.cc
+                ./src/hotreload/HotReloadExporterPlatform.cc)
+  endif()
 
-  add_definitions("-DGLTF_EXPORTER_ENABLE_HOT_RELOAD")
-  list(APPEND EXTRA_GLTF_EXPORTER_SOURCES ./src/hotreload/HotReloadExporter.cc
-              ./src/hotreload/HotReloadExporterPlatform.cc)
 endif(GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD)
 
 # -- glTF Exporter for maya --------------------
@@ -422,7 +440,7 @@ if(GLTF_MAYA_EXPORTER_BUILD_MAYA_VRM_EXPORTER)
 
   target_link_libraries(vrmExporter
                         kml
-                        AdskXGen
+                        ${XGEN_LIBS}
                         OpenMaya
                         OpenMayaAnim
                         OpenMayaUI
