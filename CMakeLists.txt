@@ -308,6 +308,7 @@ if(GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD)
   add_library(${EXPORTER_LOGIC_PLUGIN_NAME}
               SHARED
               ./src/hotreload/HotReloadExporterLogic.cc
+              ./src/hotreload/XGenSplineToCyHair.cc
               ./src/hotreload/cyhair-writer.cc
               ${hotreload_fb_srcs}
               ${hotreload_grpc_srcs})
@@ -364,6 +365,8 @@ if(GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD)
   add_definitions("-DGLTF_EXPORTER_ENABLE_HOT_RELOAD")
   list(APPEND EXTRA_GLTF_EXPORTER_SOURCES ./src/hotreload/HotReloadExporter.cc
               ./src/hotreload/HotReloadExporterPlatform.cc)
+else()
+  list(APPEND EXTRA_GLTF_EXPORTER_SOURCES ./src/hotreload/XGenSplineToCyHair.cc)
 endif(GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD)
 
 # -- glTF Exporter for maya --------------------

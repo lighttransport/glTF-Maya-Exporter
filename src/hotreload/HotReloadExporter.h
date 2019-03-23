@@ -1,23 +1,22 @@
 #ifndef HOT_RELOAD_EXPORTER_H_
 #define HOT_RELOAD_EXPORTER_H_
 
-#include <maya/MPxFileTranslator.h>
-#include <maya/MItGeometry.h>
 #include <maya/MGlobal.h>
+#include <maya/MItGeometry.h>
+#include <maya/MPxFileTranslator.h>
 
-#include "XGenHairProcessInputOutput.h"
-
+#include "XGenSplineProcessInputOutput.h"
 
 struct HotReloadableExporter
 {
-	static void *creator();
+    static void* creator();
 
-	void postConstructor();
+    void postConstructor();
 
-	static MStatus initialize();
+    static MStatus initialize();
 
-  // Process one dag path
-	MStatus export_func(const XGenHairProcessInput &input, XGenHairProcessOutput *output);
+    // Process one dag path
+    MStatus export_func(const XGenSplineProcessInput& input, XGenSplineProcessOutput* output);
 };
 
 #endif /* HOT_RELOAD_EXPORTER_H_ */

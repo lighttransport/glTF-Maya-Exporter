@@ -1,7 +1,13 @@
 #include "HotReloadExporterLogic.h"
 
+#include "XGenSplineProcessInputOutput.h"
+#include "XGenSplineToCyHair.h"
+
 #include <sstream>
 
+#include <ssmath/common_math.h>
+
+#if 0
 #include <maya/MDagPath.h>
 #include <maya/MDataHandle.h>
 #include <maya/MFnDagNode.h>
@@ -14,15 +20,16 @@
 #include <maya/MPxData.h>
 #include <maya/MString.h>
 
-#include <ssmath/common_math.h>
-
 #include <XGen/XgSplineAPI.h>
 
-#include <chrono>
-
-#include "XGenHairProcessInputOutput.h"
-
 #include "cyhair-writer.h"
+
+#include <chrono>
+#endif
+
+
+
+#if defined(GLTF_EXPORTER_SERIALIZER)
 
 // grpc + fb
 #include <grpc++/grpc++.h>
@@ -30,8 +37,12 @@
 #include "hotreload.grpc.fb.h"
 #include "hotreload_generated.h"
 
+#endif // GLTF_EXPORTER_SERIALIZER
+
 namespace
 {
+
+#if defined(GLTF_EXPORTER_SERIALIZER)
 
 class GreeterClient {
  public:
@@ -91,8 +102,10 @@ class GreeterClient {
  private:
   std::unique_ptr<Greeter::Stub> stub_;
 };
+#endif
 
 
+#if 0
     ///
     /// Get a material(ShadingGroup in Maya) assigned to XGen node.
     ///
@@ -204,6 +217,7 @@ class GreeterClient {
         std::string message = greeter.SendCyhair(buffer);
         std::cerr << "SendCyhair received: " << message << std::endl;
     }
+#endif
 
 } // namespace
 
@@ -212,209 +226,13 @@ Shared
     // Write your own function here.
     DLLExport void exportFunc(const void* in_arg, void* out_arg)
     {
-        const XGenHairProcessInput* input = reinterpret_cast<const XGenHairProcessInput*>(in_arg);
-        XGenHairProcessOutput* output = reinterpret_cast<XGenHairProcessOutput*>(out_arg);
+        const XGenSplineProcessInput* input = reinterpret_cast<const XGenSplineProcessInput*>(in_arg);
+        XGenSplineProcessOutput* output = reinterpret_cast<XGenSplineProcessOutput*>(out_arg);
 
-        // TODO(LTE): Read export parameters
-        const int num_strands = -1; // -1 = export all strands.
-        const bool phantom_points = false;
-        const bool cv_repeat = true;
+        bool ret = XGenSplineToCyHair(*input, output);
+        (void)ret;
 
-        const MDagPath dag = input->dagPath;
-        MString fullPathName = dag.fullPathName();
-
-        MGlobal::displayInfo("Exporting " + fullPathName);
-
-        const char* str = fullPathName.asChar();
-
-        std::stringstream binary_data;
-        {
-            bool ret = ExtractPluginData(dag, &binary_data);
-            if (!ret)
-            {
-                MGlobal::displayError("Failed to extract XGen spline data. dag = " + fullPathName);
-                return;
-            }
-        }
-
-        std::cout << "binary size = " + std::to_string(binary_data.str().size()) << "\n";
-
-        XGenSplineAPI::XgFnSpline _splines;
-        const float sample_time = 0.0f; // TODO(LTE)
-
-        const auto start_time = std::chrono::system_clock::now();
-
-        if (!_splines.load(binary_data, binary_data.str().size(), sample_time))
-        {
-            MGlobal::displayError("Failed to load XGen spline data. dag = " + fullPathName);
-            return;
-        }
-
-        MGlobal::displayInfo("Loaded spline data. dag = " + fullPathName);
-
-        MObject shaderObject = GetMaterialOfXGenNode(dag);
-        output->shader = shaderObject;
-
-        XGenSplineAPI::XgItSpline it = _splines.iterator();
-
-        // TODO(LTE): Create array for each spline primitive and do not create 1D global array.
-        // std::vector<float> patch_uvs; // TODO(LTE)
-        std::vector<float>& texcoords = output->texcoords;
-        std::vector<float>& points = output->points;
-        std::vector<float>& radiuss = output->radiuss;
-        std::vector<uint32_t>& num_points = output->num_points;
-
-        size_t counts = 0; // exported number of strands;
-        for (; !it.isDone(); it.next())
-        {
-            const uint32_t stride = it.primitiveInfoStride();
-
-            const uint32_t primitiveCount = it.primitiveCount();
-            const uint32_t* primitiveInfos = it.primitiveInfos();
-
-            int motion = 0; // TODO(LTE): Support motion time
-
-            const SgVec3f* in_positions = it.positions(motion);
-            const float* in_widths = it.width(motion);
-            const SgVec2f* in_texcoords = it.texcoords(motion);
-            const SgVec2f* in_patchUVs = it.patchUVs(motion);
-
-            for (uint32_t i = 0; i < primitiveCount; i++, counts++)
-            {
-                // Up to num_strands
-                if (num_strands > 0)
-                {
-                    if (counts >= num_strands)
-                    {
-                        break;
-                    }
-                }
-
-                const uint32_t offset = primitiveInfos[i * stride];
-                const uint32_t length = primitiveInfos[i * stride + 1];
-
-                if (phantom_points)
-                {
-                    num_points.push_back(
-                        length + 2); // +2 = phantom points
-                }
-                else if (cv_repeat)
-                {
-                    num_points.push_back(
-                        length + 2 + 2); // +2 for the first, another +2 for the last
-                }
-                else
-                {
-                    num_points.push_back(
-                        length);
-                }
-
-                // add phantom points at the beginning.
-                if (phantom_points)
-                {
-                    points.push_back(in_positions[offset][0] + (in_positions[offset][0] - in_positions[offset + 1][0]));
-                    points.push_back(in_positions[offset][1] + (in_positions[offset][1] - in_positions[offset + 1][1]));
-                    points.push_back(in_positions[offset][2] + (in_positions[offset][2] - in_positions[offset + 1][2]));
-
-                    radiuss.push_back(0.5f * (in_widths[offset] + (in_widths[offset] - in_widths[offset + 1])));
-
-                    texcoords.push_back(in_texcoords[offset][0] + (in_texcoords[offset][0] - in_texcoords[offset + 1][0]));
-                    texcoords.push_back(in_texcoords[offset][1] + (in_texcoords[offset][1] - in_texcoords[offset + 1][1]));
-                }
-                else if (cv_repeat)
-                {
-                    // http://www.fundza.com/mtor/maya_curves_prman/add_attribute/index.html
-                    // repet the first point two times.
-                    points.push_back(in_positions[offset][0]);
-                    points.push_back(in_positions[offset][1]);
-                    points.push_back(in_positions[offset][2]);
-
-                    points.push_back(in_positions[offset][0]);
-                    points.push_back(in_positions[offset][1]);
-                    points.push_back(in_positions[offset][2]);
-
-                    radiuss.push_back(0.5f * in_widths[offset]);
-                    radiuss.push_back(0.5f * in_widths[offset]);
-
-                    texcoords.push_back(in_texcoords[offset][0]);
-                    texcoords.push_back(in_texcoords[offset][1]);
-                    texcoords.push_back(in_texcoords[offset][0]);
-                    texcoords.push_back(in_texcoords[offset][1]);
-                }
-
-                // For strand CVs.
-                for (uint32_t k = 0; k < length; k++)
-                {
-                    const size_t idx = offset + k;
-                    points.push_back(in_positions[idx][0]);
-                    points.push_back(in_positions[idx][1]);
-                    points.push_back(in_positions[idx][2]);
-                    //std::cout << "p = " << positions[idx][0] << ", " << positions[idx][1] << ", " << positions[idx][2] << std::endl;
-
-                    radiuss.push_back(in_widths[idx] * 0.5f);
-                    //std::cout << "width[" << idx << "] = " << widths[idx] << std::endl;
-                    texcoords.push_back(in_texcoords[offset + k][0]);
-                    texcoords.push_back(in_texcoords[offset + k][1]);
-
-                    //std::cout << "uvs[" << idx << "] = " << patchUVs[idx][0] << ", " << patchUVs[idx][1] << std::endl;
-                }
-
-                // add phantom points at the end.
-                if (phantom_points)
-                {
-                    size_t idx = offset + length - 1;
-                    points.push_back(in_positions[idx][0] + (in_positions[idx][0] - in_positions[idx - 1][0]));
-                    points.push_back(in_positions[idx][1] + (in_positions[idx][1] - in_positions[idx - 1][1]));
-                    points.push_back(in_positions[idx][2] + (in_positions[idx][2] - in_positions[idx - 1][2]));
-
-                    radiuss.push_back(0.5f * (in_widths[idx] + (in_widths[idx] - in_widths[idx - 1])));
-
-                    texcoords.push_back(in_texcoords[idx][0] + (in_texcoords[idx][0] - in_texcoords[idx - 1][0]));
-                    texcoords.push_back(in_texcoords[idx][1] + (in_texcoords[idx][1] - in_texcoords[idx - 1][1]));
-                }
-                else if (cv_repeat)
-                {
-                    // repet the first point two times.
-                    points.push_back(in_positions[offset][0]);
-                    points.push_back(in_positions[offset][1]);
-                    points.push_back(in_positions[offset][2]);
-
-                    points.push_back(in_positions[offset][0]);
-                    points.push_back(in_positions[offset][1]);
-                    points.push_back(in_positions[offset][2]);
-
-                    radiuss.push_back(0.5f * in_widths[offset]);
-                    radiuss.push_back(0.5f * in_widths[offset]);
-
-                    texcoords.push_back(in_texcoords[offset][0]);
-                    texcoords.push_back(in_texcoords[offset][1]);
-                    texcoords.push_back(in_texcoords[offset][0]);
-                    texcoords.push_back(in_texcoords[offset][1]);
-                }
-            }
-        }
-
-        // Serialize to CyHair format.
-        output->cyhair_data = cyhair_writer::SerializeAsCyHair(points, radiuss, texcoords, num_points, /* export radius */ true, /* export texcoords */ true);
-
-        const auto end_time = std::chrono::system_clock::now();
-        std::chrono::duration<double, std::milli> ms = end_time - start_time;
-
-        std::string duration = std::to_string(ms.count());
-        {
-            std::stringstream ss;
-            ss << "Converted " << counts << " splines";
-            MString msg(ss.str().c_str());
-            MGlobal::displayInfo(msg);
-        }
-
-        {
-            std::stringstream ss;
-            ss << "CyHair data size: " << output->cyhair_data.size() << " bytes";
-            MString msg(ss.str().c_str());
-            MGlobal::displayInfo(msg);
-        }
-
+#if 0
         //
         // HACK
         //
@@ -428,6 +246,7 @@ Shared
         }
 
         MGlobal::displayInfo("Strand conversion time: " + MString(duration.c_str()) + " [ms]");
+#endif
 
         return;
     }

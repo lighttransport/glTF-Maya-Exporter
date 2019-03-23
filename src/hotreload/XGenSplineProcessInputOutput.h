@@ -5,7 +5,7 @@
 #include <maya/MObject.h>
 #include <maya/MDagPath.h>
 
-struct XGenHairProcessInput
+struct XGenSplineProcessInput
 {
     MDagPath dagPath; // DagPath of xgen IG node(collection)
 
@@ -19,7 +19,7 @@ struct XGenHairProcessInput
 
 };
 
-struct XGenHairProcessOutput
+struct XGenSplineProcessOutput
 {
     std::vector<float> texcoords; // 1D texcoord array
     std::vector<float> points; // 1D points array

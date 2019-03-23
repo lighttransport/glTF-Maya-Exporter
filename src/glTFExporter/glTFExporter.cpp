@@ -90,6 +90,8 @@
 
 #if defined(GLTF_EXPORTER_ENABLE_HOT_RELOAD)
 #include "hotreload/HotReloadExporter.h"
+#else
+#include "hotreload/XGenSplineToCyHair.h"
 #endif
 
 #include <fstream>
@@ -2575,16 +2577,22 @@ static MStatus WriteXGenHairToGLTF(
 
     MStatus status = MS::kSuccess;
 
-    // HACK
+    XGenSplineProcessInput input;
+    XGenSplineProcessOutput output;
+    input.dagPath = dagPath;
+    // TODO(LTE): Fill other input parameters.
+
 #if GLTF_EXPORTER_ENABLE_HOT_RELOAD
+    // Invoke function through dll hotreload
     if (!gHotReloadableExporter) {
       gHotReloadableExporter = reinterpret_cast<HotReloadableExporter*>(HotReloadableExporter::creator());
       gHotReloadableExporter->postConstructor();
     }
-    XGenHairProcessInput input;
-    XGenHairProcessOutput output;
-    input.dagPath = dagPath;
     gHotReloadableExporter->export_func(input, &output);
+#else
+    bool ret = XGenSplineToCyHair(input, &output);
+    (void)ret;
+#endif
 
     if (output.cyhair_data.size() == 0) {
         // ???
@@ -2603,6 +2611,7 @@ static MStatus WriteXGenHairToGLTF(
         if (it == materials.end())
         {
             std::shared_ptr<kml::Material> mat = ConvertMaterial(output.shader);
+            mat->SetInteger("ID", shaderID);
             materials[shaderID] = mat;
             MFnDependencyNode fn(output.shader);
             MGlobal::displayInfo("Added hair material : " + fn.name());
@@ -2612,8 +2621,6 @@ static MStatus WriteXGenHairToGLTF(
 
     // Write out cyhair file.
     {
-        std::string number = "0";
-
         std::string base_path = dirname.asChar();
 
         std::string cyhair_path = MakeDirectoryPath(std::string(dagPath.partialPathName().asChar())) + ".hair";
@@ -2638,8 +2645,6 @@ static MStatus WriteXGenHairToGLTF(
 
         xgen_corrections.push_back({cyhair_path, materialID});
     }
-
-#endif
 
     return status;
 
@@ -4755,8 +4760,6 @@ MStatus glTFExporter::exportProcess(const MString& fname, const std::vector<MDag
 
         // FIXME(LTE): Tentative implementation
         {
-            fprintf(stderr, "bb xgen corrections : %d\n", xgenCorrectionAndMaterialPairs.size());
-
             // Add to the first node
             for (size_t i = 0; i < xgenCorrectionAndMaterialPairs.size(); i++)
             {
@@ -4781,8 +4784,6 @@ MStatus glTFExporter::exportProcess(const MString& fname, const std::vector<MDag
     {
         // FIXME(LTE): Tentative implementation
         {
-            fprintf(stderr, "aa xgen corrections : %d\n", xgenCorrectionAndMaterialPairs.size());
-
             // Add to the first node
             for (size_t i = 0; i < xgenCorrectionAndMaterialPairs.size(); i++)
             {

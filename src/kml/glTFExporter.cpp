@@ -1790,13 +1790,17 @@ namespace kml
 
 
                         int matid = -1;
-                        // Use the first hair material(aiStandardHair).
-                        // TODO(LTE): Find material index assigned to this hair object.
+                        // Find glTF material index from shader ID
                         {
                             const auto& materials = node->GetMaterials();
                             for (size_t m = 0; m < materials.size(); m++) {
                                 if (materials[m]->GetInteger("aiStandardHair")) {
-                                    matid = m;
+                                    const int id = materials[m]->GetInteger("ID");
+                                    fprintf(stderr, "hair.matid = %d, material.ID = %d", hairs[j].second, id);
+                                    if (hairs[j].second == id) {
+                                        // Got it
+                                        matid = m;
+                                    }
                                 }
                             }
                         }

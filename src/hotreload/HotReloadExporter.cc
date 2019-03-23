@@ -4,7 +4,7 @@
 
 #include "HotReloadExporter.h"
 #include "HotReloadExporterPlatform.h"
-#include "XGenHairProcessInputOutput.h"
+#include "XGenSplineProcessInputOutput.h"
 //#include "HotReloadExporterLogic.h"
 
 #include <maya/MGlobal.h>
@@ -38,7 +38,7 @@ MStatus HotReloadableExporter::initialize()
     return result;
 }
 
-MStatus HotReloadableExporter::export_func(const XGenHairProcessInput &input, XGenHairProcessOutput *output)
+MStatus HotReloadableExporter::export_func(const XGenSplineProcessInput &input, XGenSplineProcessOutput *output)
 {
     LibraryStatus status;
 
