@@ -1,5 +1,10 @@
 // Dummy server implementation for gRPC + flatbuffers testing.
 
+#if defined(_WIN32)
+// required for grpc
+#define _WIN32_WINNT 0x600
+#endif
+
 #include "hotreload.grpc.fb.h"
 #include "hotreload_generated.h"
 
