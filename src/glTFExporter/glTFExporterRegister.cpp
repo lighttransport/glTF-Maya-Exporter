@@ -23,7 +23,7 @@
 
 #define VENDOR_NAME "Light Transport Entertainment, Inc."
 #define PLUGIN_NAME "glTF-Maya-Exporter-LTE"
-#define PLUGIN_VERSION "1.5.4"
+#define PLUGIN_VERSION "1.6.0"
 #define EXPOTER_NAME_GLTF "GLTF Export"
 #define EXPOTER_NAME_GLB "GLB Export"
 
@@ -94,7 +94,7 @@ __declspec(dllexport)
     fprintf(stderr, "OSPluginPath [ %s ]\n", OSPluginPath);
     kPluginLogicLibraryPath = getExporterLogicLibraryPath(OSPluginPath);
     MGlobal::displayInfo("PluginLogicLibrayPath [" + kPluginLogicLibraryPath + "]");
-  
+
 #endif
 
     // Register the translator with the system
