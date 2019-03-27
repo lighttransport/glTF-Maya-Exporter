@@ -11,7 +11,7 @@ option(GLTF_MAYA_EXPORTER_BUILD_MAYA_GLTF_EXPORTER "Build Maya glTF Exporter"
        ON)
 option(GLTF_MAYA_EXPORTER_BUILD_MAYA_VRM_EXPORTER "Build Maya VRM Exporter" ON)
 option(GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD
-       "Build with hot reload feature(for developer)" ON)
+       "Build with hot reload feature(for developer)" OFF)
 option(GLTF_MAYA_EXPORTER_BUILD_SERIALIZER
        "Build messegae serializer(for developer)" OFF)
 option(GLTF_MAYA_EXPORTER_BUILD_CPP_INTERFACE "Build cpp interface and test"
@@ -381,14 +381,14 @@ if(GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD)
     add_definitions("-DGLTF_EXPORTER_ENABLE_HOT_RELOAD")
     list(APPEND EXTRA_GLTF_EXPORTER_SOURCES ./src/hotreload/HotReloadExporter.cc
                 ./src/hotreload/HotReloadExporterPlatform.cc)
-  endif(WIN32)
+  endif()
 
 else()
   list(APPEND EXTRA_GLTF_EXPORTER_SOURCES
          ./src/hotreload/XGenSplineToCyHair.cc
          ./src/hotreload/cyhair-writer.cc)
 
-endif(GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD)
+endif()
 
 # -- glTF Exporter for maya --------------------
 if(GLTF_MAYA_EXPORTER_BUILD_MAYA_GLTF_EXPORTER)
@@ -441,7 +441,8 @@ if(GLTF_MAYA_EXPORTER_BUILD_MAYA_VRM_EXPORTER)
               ./src/glTFExporter/glTFExporter.cpp
               ./src/glTFExporter/glTFTranslator.cpp
               ./src/glTFExporter/murmur3.c
-              ./src/glTFExporter/ProgressWindow.cpp)
+              ./src/glTFExporter/ProgressWindow.cpp
+              ${EXTRA_GLTF_EXPORTER_SOURCES})
 
   target_compile_definitions(vrmExporter PUBLIC ENABLE_VRM=1)
 
