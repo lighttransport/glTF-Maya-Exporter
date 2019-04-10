@@ -9,12 +9,12 @@ struct XGenSplineProcessInput
 {
     MDagPath dagPath; // DagPath of xgen IG node(collection)
 
-    const int num_strands = -1;         // # of strands to export. -1 = export all strands.
-    const bool phantom_points = false;  // Add phantom points?
-    const bool cv_repeat = true;        // Repeat the first and the last CV point?
+    int num_strands = -1;         // # of strands to export. -1 = export all strands.
+    bool phantom_points = false;  // Add phantom points?
+    bool cv_repeat = false;        // Repeat the first and the last CV point?
 
     // NOTE:
-    // Export CV points as in Maya XGen when
+    // Export CV points as-is(same data structure in Maya XGen) when
     // phantom_points == false and cv_repeat == false
 
 };
@@ -28,5 +28,7 @@ struct XGenSplineProcessOutput
 
     MObject shader; // SG node assigend to XGen IG node.
 
-    std::string cyhair_data;    // XGen spline data serializd to CyHair binary format. empty = failed to serialize
+    std::string cyhair_data;    // XGen spline data serializd to CyHair binary format.
+
+    std::string xpd_data;       // XGen spline data serialized to XPD format.
 };

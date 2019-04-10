@@ -2577,10 +2577,14 @@ static MStatus WriteXGenHairToGLTF(
 
     MStatus status = MS::kSuccess;
 
+    // TODO(LTE): Read input parameter from UI
     XGenSplineProcessInput input;
+
+    // FIXME(LTE): cv_repeat is for exporting XGen splines as b-spline curves, but it looks cv_repeat does not handle splines well. So disable cv_repeat for a while.
+    input.cv_repeat = false;
+
     XGenSplineProcessOutput output;
     input.dagPath = dagPath;
-    // TODO(LTE): Fill other input parameters.
 
 #if GLTF_EXPORTER_ENABLE_HOT_RELOAD
     // Invoke function through dll hotreload

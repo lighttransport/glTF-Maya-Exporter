@@ -1,8 +1,10 @@
 #include "XGenSplineToCyHair.h"
 #include "cyhair-writer.h"
 
-#include <sstream>
 #include <chrono>
+#include <map>
+#include <sstream>
+#include <set>
 
 #include <maya/MDagPath.h>
 #include <maya/MDataHandle.h>
@@ -14,12 +16,38 @@
 #include <maya/MPlugArray.h>
 #include <maya/MPoint.h>
 #include <maya/MPxData.h>
+#include <maya/MRampAttribute.h>
 #include <maya/MString.h>
 
+#include <XGen/XgUtil.h> // XGError
 #include <XGen/XgSplineAPI.h>
 
 namespace
 {
+    enum RampInterpolation
+    {
+        RAMP_INTERPOLATION_NONE = 0,
+        RAMP_INTERPOLATION_LINEAR = 1,
+        RAMP_INTERPOLATION_SMOOTH = 2,
+        RAMP_INTERPOLATION_SPLINE = 3
+    };
+
+    struct RampParameter
+    {
+        int index = 0;
+        float position = 0.0f;
+        float value = 1.0f;
+        RampInterpolation interpolation = RAMP_INTERPOLATION_LINEAR;
+    };
+
+    struct WidthParameter
+    {
+        float width;           // `Width Scale` in Attribute editor UI
+        float widthTaper;      // `Taper`
+        float widthTaperStart; // `Taper Start`
+
+        std::vector<RampParameter> widthRamps;
+    };
 
     ///
     /// Get a material(ShadingGroup in Maya) assigned to XGen node.
@@ -74,7 +102,87 @@ namespace
     }
 
     ///
-    /// Extract opaque binary plugin data.
+    /// Extract width parameter
+    /// width parameter is stored in shape node(e.g. `description1_Shape.width`)
+    ///
+    static bool ExtractWidthParameter(const MDagPath& dagPath, WidthParameter* output)
+    {
+        MStatus status;
+
+        MFnDagNode node(dagPath, &status);
+        if (MStatus::kSuccess != status)
+        {
+            return false;
+        }
+
+        output->widthRamps.clear();
+
+        // width
+        {
+            MPlug width = node.findPlug("width", &status);
+            if (MStatus::kSuccess == status)
+            {
+                output->width = width.asFloat();
+                std::cerr << "width = " << output->width << std::endl;
+            }
+        }
+
+        // taper
+        {
+            MPlug taper = node.findPlug("widthTaper", &status);
+            if (MStatus::kSuccess == status)
+            {
+                output->widthTaper = taper.asFloat();
+                std::cerr << "taper = " << output->widthTaper << std::endl;
+            }
+        }
+
+        // taper start
+        {
+            MPlug taperStart = node.findPlug("widthTaperStart", &status);
+            if (MStatus::kSuccess == status)
+            {
+                output->widthTaperStart = taperStart.asFloat();
+                std::cerr << "taper start = " << output->widthTaperStart << std::endl;
+            }
+        }
+
+        // width ramp
+        {
+            MPlug mp = node.findPlug("widthRamp", &status);
+
+            MRampAttribute ramp(mp, &status);
+            if (MStatus::kSuccess == status)
+            {
+                std::cerr << "nument = " << ramp.getNumEntries() << std::endl;
+                MIntArray indexes;
+                MFloatArray positions;
+                MFloatArray values;
+                MIntArray interps;
+                ramp.getEntries(indexes, positions, values, interps);
+
+                std::cerr << "positions.len = " << positions.length() << std::endl;
+
+                for (int k = 0; k < positions.length(); k++)
+                {
+
+                    RampParameter param;
+                    // NOTE(LTE): Usually k == indexes[k]
+                    param.index = indexes[k];
+                    param.position = positions[k];
+                    param.value = values[k];
+                    param.interpolation = static_cast<RampInterpolation>(interps[k]);
+
+                    output->widthRamps.push_back(param);
+                }
+            }
+        }
+
+        return true;
+    }
+
+    ///
+    /// Extract opaque binary plugin data(spline data).
     ///
     static bool ExtractPluginData(const MDagPath& dagPath, std::stringstream* oss)
     {
@@ -118,10 +226,11 @@ namespace
 
 bool XGenSplineToCyHair(const XGenSplineProcessInput& input, XGenSplineProcessOutput* output)
 {
-    // TODO(LTE): Read export parameters
     const int num_strands = input.num_strands; // -1 = export all strands.
     const bool phantom_points = input.phantom_points;
     const bool cv_repeat = input.cv_repeat;
+    std::cerr << "phantom points = " << phantom_points << std::endl;
+    std::cerr << "CV repeat = " << cv_repeat << std::endl;
 
     const MDagPath dag = input.dagPath;
     MString fullPathName = dag.fullPathName();
@@ -129,6 +238,16 @@ bool XGenSplineToCyHair(const XGenSplineProcessInput& input, XGenSplineProcessOu
     MGlobal::displayInfo("Exporting " + fullPathName);
 
     const char* str = fullPathName.asChar();
+
+    WidthParameter width_parameter;
+    {
+        bool ret = ExtractWidthParameter(dag, &width_parameter);
+        if (!ret)
+        {
+            MGlobal::displayError("Failed to extract XGen width parameter. dag = " + fullPathName);
+            return false;
+        }
+    }
 
     std::stringstream binary_data;
     {
@@ -153,6 +272,25 @@ bool XGenSplineToCyHair(const XGenSplineProcessInput& input, XGenSplineProcessOu
         return false;
     }
 
+    // Execute script to remove culled primitives from primitiveInfos array
+    _splines.executeScript();
+
+    std::set<std::string> meshIds;
+    for (XGenSplineAPI::XgItSpline splineIt = _splines.iterator(); !splineIt.isDone(); splineIt.next())
+    {
+        const std::string meshId = splineIt.boundMeshId();
+
+        meshIds.insert(meshId);
+    }
+
+      size_t meshNum = meshIds.size();
+      if (meshNum == 0)
+      {
+        XGError("No spline data found from plug: " + std::string(fullPathName.asChar()));
+        return false;
+      }
+
+
     MGlobal::displayInfo("Loaded spline data. dag = " + fullPathName);
 
     MObject shaderObject = GetMaterialOfXGenNode(dag);
@@ -162,6 +300,8 @@ bool XGenSplineToCyHair(const XGenSplineProcessInput& input, XGenSplineProcessOu
 
     // TODO(LTE): Create array for each spline primitive and do not create 1D global array.
     // std::vector<float> patch_uvs; // TODO(LTE)
+
+    // Reference.
     std::vector<float>& texcoords = output->texcoords;
     std::vector<float>& points = output->points;
     std::vector<float>& radiuss = output->radiuss;
@@ -181,6 +321,7 @@ bool XGenSplineToCyHair(const XGenSplineProcessInput& input, XGenSplineProcessOu
         const float* in_widths = it.width(motion);
         const SgVec2f* in_texcoords = it.texcoords(motion);
         const SgVec2f* in_patchUVs = it.patchUVs(motion);
+        const SgVec3f* in_widthDirection = it.widthDirection(motion);
 
         for (uint32_t i = 0; i < primitiveCount; i++, counts++)
         {
@@ -241,6 +382,7 @@ bool XGenSplineToCyHair(const XGenSplineProcessInput& input, XGenSplineProcessOu
 
                 texcoords.push_back(in_texcoords[offset][0]);
                 texcoords.push_back(in_texcoords[offset][1]);
+
                 texcoords.push_back(in_texcoords[offset][0]);
                 texcoords.push_back(in_texcoords[offset][1]);
             }
@@ -260,6 +402,9 @@ bool XGenSplineToCyHair(const XGenSplineProcessInput& input, XGenSplineProcessOu
                 texcoords.push_back(in_texcoords[offset + k][1]);
 
                 //std::cout << "uvs[" << idx << "] = " << patchUVs[idx][0] << ", " << patchUVs[idx][1] << std::endl;
+
+                // DBG:
+                // std::cout << "widthDir[" << idx << "] = " << in_widthDirection[offset + k][0] << ", " << in_widthDirection[offset + k][1] << ", " << in_widthDirection[offset + k][2] << "]\n";
             }
 
             // add phantom points at the end.
@@ -287,10 +432,12 @@ bool XGenSplineToCyHair(const XGenSplineProcessInput& input, XGenSplineProcessOu
                 points.push_back(in_positions[offset][2]);
 
                 radiuss.push_back(0.5f * in_widths[offset]);
+
                 radiuss.push_back(0.5f * in_widths[offset]);
 
                 texcoords.push_back(in_texcoords[offset][0]);
                 texcoords.push_back(in_texcoords[offset][1]);
+
                 texcoords.push_back(in_texcoords[offset][0]);
                 texcoords.push_back(in_texcoords[offset][1]);
             }

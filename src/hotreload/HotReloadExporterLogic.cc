@@ -2,32 +2,11 @@
 
 #include "XGenSplineProcessInputOutput.h"
 #include "XGenSplineToCyHair.h"
+#include "XGenSplineToXPD.h"
 
 #include <sstream>
 
 #include <ssmath/common_math.h>
-
-#if 0
-#include <maya/MDagPath.h>
-#include <maya/MDataHandle.h>
-#include <maya/MFnDagNode.h>
-#include <maya/MFnPluginData.h>
-#include <maya/MGlobal.h>
-#include <maya/MObjectArray.h>
-#include <maya/MPlug.h>
-#include <maya/MPlugArray.h>
-#include <maya/MPoint.h>
-#include <maya/MPxData.h>
-#include <maya/MString.h>
-
-#include <XGen/XgSplineAPI.h>
-
-#include "cyhair-writer.h"
-
-#include <chrono>
-#endif
-
-
 
 #if defined(GLTF_EXPORTER_SERIALIZER)
 
@@ -71,34 +50,6 @@ class GreeterClient {
     }
   }
 
-#if 0
-  void SayManyHellos(const std::string &name, int num_greetings,
-                     std::function<void(const std::string &)> callback) {
-    flatbuffers::grpc::MessageBuilder mb;
-    auto name_offset = mb.CreateString(name);
-    auto request_offset =
-        CreateManyHellosRequest(mb, name_offset, num_greetings);
-    mb.Finish(request_offset);
-    auto request_msg = mb.ReleaseMessage<ManyHellosRequest>();
-
-    flatbuffers::grpc::Message<HelloReply> response_msg;
-
-    grpc::ClientContext context;
-
-    auto stream = stub_->SayManyHellos(&context, request_msg);
-    while (stream->Read(&response_msg)) {
-      const HelloReply *response = response_msg.GetRoot();
-      callback(response->message()->str());
-    }
-    auto status = stream->Finish();
-    if (!status.ok()) {
-      std::cerr << status.error_code() << ": " << status.error_message()
-                << std::endl;
-      callback("RPC failed");
-    }
-  }
-#endif
-
  private:
   std::unique_ptr<Greeter::Stub> stub_;
 };
@@ -106,99 +57,6 @@ class GreeterClient {
 
 
 #if 0
-    ///
-    /// Get a material(ShadingGroup in Maya) assigned to XGen node.
-    ///
-    static MObject GetMaterialOfXGenNode(const MDagPath& dagPath)
-    {
-
-        MStatus status = MStatus::kSuccess;
-
-        MDagPath shapePath(dagPath);
-        shapePath.extendToShape();
-
-        MFnDagNode node(shapePath, &status);
-        if (MStatus::kSuccess != status)
-        {
-            return MObject::kNullObj;
-        }
-
-        MObjectArray sgs; // shading groups
-        MObjectArray compos;
-        node.getConnectedSetsAndMembers(shapePath.instanceNumber(), sgs, compos, true);
-
-        if (sgs.length() < 1)
-        {
-            // No material assigned?
-            return MObject::kNullObj;
-        }
-
-        MFnDependencyNode sg_fn(sgs[0]);
-
-        MGlobal::displayInfo("SG: " + sg_fn.name());
-
-        MPlug shaderPlug = sg_fn.findPlug("surfaceShader");
-        if (!shaderPlug.isNull())
-        {
-            MPlugArray connectedPlugs;
-            bool asSrc = false;
-            bool asDst = true;
-            shaderPlug.connectedTo(connectedPlugs, asDst, asSrc);
-            if (connectedPlugs.length() == 1)
-            {
-                // Return SG, not surfaceShader, since glTFExporter looks up `surfaceShader` when converting Maya shader to Material.
-                return sgs[0];
-            }
-            else
-            {
-                // Fail to get a shader for some reason(link invalid?)
-            }
-        }
-
-        return MObject::kNullObj;
-    }
-
-    ///
-    /// Extract opaque binary plugin data.
-    ///
-    static bool ExtractPluginData(const MDagPath& dagPath, std::stringstream* oss)
-    {
-        // There is a `outRenderData` for XGen shape node.
-        // e.g. `description1_Shape.outRenderData`
-
-        MStatus status;
-
-        MFnDagNode node(dagPath, &status);
-        if (MStatus::kSuccess != status)
-        {
-            return false;
-        }
-
-        MPlug outRenderDataPlug = node.findPlug("outRenderData");
-        if (MStatus::kSuccess != status)
-        {
-            return false;
-        }
-
-        MObject obj = outRenderDataPlug.asMObject();
-        MPxData* px_data = MFnPluginData(obj).data();
-
-        if (px_data)
-        {
-            px_data->writeBinary(*oss);
-
-            if (oss->str().size() < 4)
-            {
-                // Data size too short
-                return false;
-            }
-
-            return true;
-        }
-
-        return false;
-    }
-
     // HACK
     static void SendCyhairData(const std::string &cyhair_data)
     {
@@ -229,8 +87,13 @@ Shared
         const XGenSplineProcessInput* input = reinterpret_cast<const XGenSplineProcessInput*>(in_arg);
         XGenSplineProcessOutput* output = reinterpret_cast<XGenSplineProcessOutput*>(out_arg);
 
+        // CyHair
         bool ret = XGenSplineToCyHair(*input, output);
         (void)ret;
+
+        // XPD
+        //bool ret = XGenSplineToXPD(*input, output);
+        //(void)ret;
 
 #if 0
         //

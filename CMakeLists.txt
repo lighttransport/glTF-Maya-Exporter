@@ -321,6 +321,7 @@ if(GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD)
               SHARED
               ./src/hotreload/HotReloadExporterLogic.cc
               ./src/hotreload/XGenSplineToCyHair.cc
+              ./src/hotreload/XGenSplineToXPD.cc
               ./src/hotreload/cyhair-writer.cc
               ${hotreload_fb_srcs}
               ${hotreload_grpc_srcs})
