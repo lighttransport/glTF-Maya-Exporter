@@ -87,13 +87,15 @@ Shared
         const XGenSplineProcessInput* input = reinterpret_cast<const XGenSplineProcessInput*>(in_arg);
         XGenSplineProcessOutput* output = reinterpret_cast<XGenSplineProcessOutput*>(out_arg);
 
-        // CyHair
-        bool ret = XGenSplineToCyHair(*input, output);
-        (void)ret;
-
-        // XPD
-        //bool ret = XGenSplineToXPD(*input, output);
-        //(void)ret;
+        if (input->hair_format.compare("xpd") == 0) {
+            // XPD
+            bool ret = XGenSplineToXPD(*input, output);
+            (void)ret;
+        } else {
+            // CyHair
+            bool ret = XGenSplineToCyHair(*input, output);
+            (void)ret;
+        }
 
 #if 0
         //

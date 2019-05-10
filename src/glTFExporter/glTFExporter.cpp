@@ -687,6 +687,7 @@ MStatus glTFExporter::writer(const MFileObject& file, const MString& options, Fi
     int freeze_skinned_mesh_transform = 1; //0:no_bake, 1:bake veritces
     int output_animations = 1;             //0:no output, 1: output animation
     int output_invisible_nodes = 0;        //0:
+    int hair_format = 0;                   //0:cyhair, 1: xpd
 
     int force_output = 0;                  //0: Force output(overwrite) glTF files
 
@@ -789,6 +790,10 @@ MStatus glTFExporter::writer(const MFileObject& file, const MString& options, Fi
             {
                 output_invisible_nodes = theOption[1].asInt();
             }
+            if (theOption[0] == MString("hair_format") && theOption.length() > 1)
+            {
+                hair_format = theOption[1].asInt();
+            }
             if (theOption[0] == MString("generator_name") && theOption.length() > 1)
             {
                 generator_name = theOption[1].asChar();
@@ -883,6 +888,8 @@ MStatus glTFExporter::writer(const MFileObject& file, const MString& options, Fi
     opts->SetInt("freeze_skinned_mesh_transform", freeze_skinned_mesh_transform);
     opts->SetInt("output_animations", output_animations);
     opts->SetInt("output_invisible_nodes", output_invisible_nodes);
+
+    opts->SetInt("hair_format", hair_format);
 
     opts->SetString("generator_name", generator_name);
 
@@ -2573,6 +2580,9 @@ static MStatus WriteXGenHairToGLTF(
     std::vector<std::pair<std::string, int>> &xgen_corrections,
     const MString& dirname, const MDagPath& dagPath) {
 
+    std::shared_ptr<kml::Options> opts = kml::Options::GetGlobalOptions();
+    bool hair_format_xpd = opts->GetInt("hair_format") > 0;
+
     // FIXME(LTE): Currently we only support `onefile` mode for exporting hair data.
 
     MStatus status = MS::kSuccess;
@@ -2585,6 +2595,7 @@ static MStatus WriteXGenHairToGLTF(
 
     XGenSplineProcessOutput output;
     input.dagPath = dagPath;
+    input.hair_format = hair_format_xpd ? "xpd" : "cyhair";
 
 #if GLTF_EXPORTER_ENABLE_HOT_RELOAD
     // Invoke function through dll hotreload
@@ -2598,7 +2609,7 @@ static MStatus WriteXGenHairToGLTF(
     (void)ret;
 #endif
 
-    if (output.cyhair_data.size() == 0) {
+    if ((!hair_format_xpd) && (output.cyhair_data.size() == 0)) {
         // ???
         MGlobal::displayError("hair data is zero");
         return MS::kFailure;
@@ -2623,8 +2634,10 @@ static MStatus WriteXGenHairToGLTF(
         materialID = shaderID;
     }
 
+    // For XPD, file is already written to a file.
+
     // Write out cyhair file.
-    {
+    if (!hair_format_xpd) {
         std::string base_path = dirname.asChar();
 
         std::string cyhair_path = MakeDirectoryPath(std::string(dagPath.partialPathName().asChar())) + ".hair";

@@ -7,6 +7,8 @@
 
 struct XGenSplineProcessInput
 {
+    std::string hair_format = "cyhair";  // "cyhair" or "xpd"
+
     MDagPath dagPath; // DagPath of xgen IG node(collection)
 
     int num_strands = -1;         // # of strands to export. -1 = export all strands.

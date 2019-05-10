@@ -1,5 +1,4 @@
 #include "XGenSplineToXPD.h"
-#include "tiny_xpd.h"
 
 #include <chrono>
 #include <map>
@@ -21,6 +20,8 @@
 
 #include <XGen/XgSplineAPI.h>
 #include <XGen/XgUtil.h>
+
+#include <xpd/Xpd.h>
 
 namespace
 {
@@ -329,24 +330,30 @@ bool XGenSplineToXPD(const XGenSplineProcessInput& input, XGenSplineProcessOutpu
 
     MString output_name = dag.fullPathName(); // FIXME(LTE):
 
-    std::map<unsigned int, std::vector<std::vector<unsigned int> > > faceToDataMap;
-    unsigned int primCount = 0; // accumulated
-    unsigned int maxFaceId = 0;
-    unsigned int curItemNum = 1;
-
     // for each meshId
     for (const std::string& meshId : meshIds)
     {
-        std::string xpd_filename;
+        std::string xpdFilename;
         if (meshNum > 1)
         {
             // Append suffix to the output filename
-            xpd_filename = makeNameUnique(output_name, meshId);
+            xpdFilename = makeNameUnique(output_name, meshId);
         }
         else
         {
-            xpd_filename = output_name.asChar();
+            xpdFilename = output_name.asChar();
         }
+
+        std::map<unsigned int, std::vector<std::vector<unsigned int> > > faceToDataMap;
+        unsigned int primCount = 0; // accumulated
+        unsigned int maxFaceId = 0;
+        unsigned int curItemNum = 1;
+        unsigned int cvCountPerPrim = 5; // this will be filled in splineIt iterator loop and also referenced in subsequent stage.
+
+        std::vector<const SgVec2f*> uvArray;
+        std::vector<const SgVec3f*> posArray;
+        std::vector<const float*> widthArray;
+        std::vector<const SgVec3f*> widthDirArray;
 
         for (XGenSplineAPI::XgItSpline splineIt = _splines.iterator(); !splineIt.isDone(); splineIt.next())
         {
@@ -365,7 +372,7 @@ bool XGenSplineToXPD(const XGenSplineProcessInput& input, XGenSplineProcessOutpu
             const unsigned int stride = splineIt.primitiveInfoStride();
             primCount += splineIt.primitiveCount();
             const unsigned int* primitiveInfos = splineIt.primitiveInfos();
-            uint32_t cvCountPerPrim = primitiveInfos[1]; // each prim has same cv count
+            cvCountPerPrim = primitiveInfos[1]; // each prim has same cv count
 
             const unsigned int* faceId = splineIt.faceId();
 
@@ -394,21 +401,28 @@ bool XGenSplineToXPD(const XGenSplineProcessInput& input, XGenSplineProcessOutpu
                 }
             }
 
-            // TODO
-            //  uvArray.push_back(splineIt.faceUV());
-            //  posArray.push_back(splineIt.positions());
-            //  widthArray.push_back(splineIt.width());
-            //  widthDirArray.push_back(splineIt.widthDirection());
+            uvArray.push_back(splineIt.faceUV());
+            posArray.push_back(splineIt.positions());
+            widthArray.push_back(splineIt.width());
+            widthDirArray.push_back(splineIt.widthDirection());
 
             curItemNum++;
 
         } // splineIt
 
         // Write XPD
+        // TODO(LTE): Use TinyXPD instead of XpdWriter
 
-        std::vector<std::string> keys; // empty
-        std::vector<std::string> blocks;
+        safevector<std::string> keys; // empty
+        safevector<std::string> blocks;
         blocks.push_back("BakedGroom");
+
+        constexpr int PRIM_ATTR_VERSION = 3;
+        XpdWriter* xFile = XpdWriter::open(xpdFilename, maxFaceId + 1,
+                                           Xpd::Spline, PRIM_ATTR_VERSION,
+                                           Xpd::Object, blocks,
+                                           float(sample_time),
+                                           cvCountPerPrim, &keys);
 
         // iterate each face
         for (unsigned int faceId = 0; faceId <= maxFaceId; faceId++)
@@ -416,7 +430,6 @@ bool XGenSplineToXPD(const XGenSplineProcessInput& input, XGenSplineProcessOutpu
             auto it = faceToDataMap.find(faceId);
             unsigned int id = 0;
 
-#if 0
             // for face without primitive, still start a face
             if (!xFile->startFace(faceId))
             {
@@ -426,7 +439,6 @@ bool XGenSplineToXPD(const XGenSplineProcessInput& input, XGenSplineProcessOutpu
             {
                 XGError("Failed to start block in XPD file: " + xpdFilename);
             }
-#endif
 
             // fill primitives data
             if (it != faceToDataMap.end())
@@ -452,118 +464,23 @@ bool XGenSplineToXPD(const XGenSplineProcessInput& input, XGenSplineProcessOutpu
                         }
 
                         // cv attr
-                        primData.push_back(1.0);                                         // length
+                        primData.push_back(1.0);                                         // length. FIXME(LTE):
                         primData.push_back(widthArray[i][index * cvCountPerPrim]);       // width
-                        primData.push_back(0.0);                                         // taper
-                        primData.push_back(0.0);                                         // taper start
+                        primData.push_back(width_parameter.widthTaper);                  // taper
+                        primData.push_back(width_parameter.widthTaperStart);             // taper start
                         primData.push_back(widthDirArray[i][index * cvCountPerPrim][0]); // width vector .x
                         primData.push_back(widthDirArray[i][index * cvCountPerPrim][1]); // width vector .y
                         primData.push_back(widthDirArray[i][index * cvCountPerPrim][2]); // width vector .z
 
-                        //xFile->writePrim(primData);
+                        xFile->writePrim(primData);
                     }
-                }
-            }
-            }
-
-        } // meshId
-
-#if 0
-        XGenSplineAPI::XgItSpline it = _splines.iterator();
-
-        // TODO(LTE): Create array for each spline primitive and do not create 1D global array.
-        // std::vector<float> patch_uvs; // TODO(LTE)
-
-        // Reference.
-        std::vector<float>& texcoords = output->texcoords;
-        std::vector<float>& points = output->points;
-        std::vector<float>& radiuss = output->radiuss;
-        std::vector<uint32_t>& num_points = output->num_points;
-
-        size_t counts = 0; // exported number of strands;
-        for (; !it.isDone(); it.next())
-        {
-            const uint32_t stride = it.primitiveInfoStride();
-
-            const uint32_t primitiveCount = it.primitiveCount();
-            const uint32_t* primitiveInfos = it.primitiveInfos();
-
-            int motion = 0; // TODO(LTE): Support motion time
-
-            const SgVec3f* in_positions = it.positions(motion);
-            const float* in_widths = it.width(motion);
-            const SgVec2f* in_texcoords = it.texcoords(motion);
-            const SgVec2f* in_patchUVs = it.patchUVs(motion);
-            const SgVec3f* in_widthDirection = it.widthDirection(motion);
-
-            for (uint32_t i = 0; i < primitiveCount; i++, counts++)
-            {
-                // Up to num_strands
-                if (num_strands > 0)
-                {
-                    if (counts >= num_strands)
-                    {
-                        break;
-                    }
-                }
-
-                const uint32_t offset = primitiveInfos[i * stride];
-                const uint32_t length = primitiveInfos[i * stride + 1];
-
-                num_points.push_back(
-                    length);
-
-                // For strand CVs.
-                for (uint32_t k = 0; k < length; k++)
-                {
-                    const size_t idx = offset + k;
-                    points.push_back(in_positions[idx][0]);
-                    points.push_back(in_positions[idx][1]);
-                    points.push_back(in_positions[idx][2]);
-                    //std::cout << "p = " << positions[idx][0] << ", " << positions[idx][1] << ", " << positions[idx][2] << std::endl;
-
-                    radiuss.push_back(in_widths[idx] * 0.5f);
-                    //std::cout << "width[" << idx << "] = " << widths[idx] << std::endl;
-                    texcoords.push_back(in_texcoords[offset + k][0]);
-                    texcoords.push_back(in_texcoords[offset + k][1]);
-
-                    //std::cout << "uvs[" << idx << "] = " << patchUVs[idx][0] << ", " << patchUVs[idx][1] << std::endl;
-
-                    // DBG:
-                    std::cout << "widthDir[" << idx << "] = " << in_widthDirection[offset + k][0] << ", " << in_widthDirection[offset + k][1] << ", " << in_widthDirection[offset + k][2] << "]\n";
                 }
             }
         }
 
-        // Serialize to XPDformat.
-    tiny_xpd::XPDHeaderInput header_input;
-    std::vector<uint8_t> prim_data;
+        xFile->close();
 
-    std::string err;
-    if (tiny_xpd::SerializeToXPD(header_input, prim_data, &output->xpd_data, &err) {
-        std::stringstream ss;
-        ss << "Failed to convert splines to XPD: " << err;
-        MString msg(ss.str().c_str());
-        MGlobal::displayError(msg);
-    }
+    } // meshId
 
-    const auto end_time = std::chrono::system_clock::now();
-    std::chrono::duration<double, std::milli> ms = end_time - start_time;
-
-    std::string duration = std::to_string(ms.count());
-    {
-        std::stringstream ss;
-        ss << "Converted XPD in " << duraion << " [msecs]";
-        MString msg(ss.str().c_str());
-        MGlobal::displayInfo(msg);
-    }
-
-    {
-        std::stringstream ss;
-        ss << "XPD data size: " << output->xpd_data.size() << " bytes";
-        MString msg(ss.str().c_str());
-        MGlobal::displayInfo(msg);
-    }
-#endif
-        return true;
-    }
+    return true;
+}
