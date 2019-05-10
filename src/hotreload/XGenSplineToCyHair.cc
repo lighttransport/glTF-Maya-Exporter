@@ -3,8 +3,8 @@
 
 #include <chrono>
 #include <map>
-#include <sstream>
 #include <set>
+#include <sstream>
 
 #include <maya/MDagPath.h>
 #include <maya/MDataHandle.h>
@@ -19,8 +19,13 @@
 #include <maya/MRampAttribute.h>
 #include <maya/MString.h>
 
-#include <XGen/XgUtil.h> // XGError
+// For XgUtil
+#ifdef _MSC_VER
+#define OSWin_
+#endif
+
 #include <XGen/XgSplineAPI.h>
+#include <XGen/XgUtil.h> // XGError
 
 namespace
 {
@@ -283,13 +288,12 @@ bool XGenSplineToCyHair(const XGenSplineProcessInput& input, XGenSplineProcessOu
         meshIds.insert(meshId);
     }
 
-      size_t meshNum = meshIds.size();
-      if (meshNum == 0)
-      {
+    size_t meshNum = meshIds.size();
+    if (meshNum == 0)
+    {
         XGError("No spline data found from plug: " + std::string(fullPathName.asChar()));
         return false;
-      }
-
+    }
 
     MGlobal::displayInfo("Loaded spline data. dag = " + fullPathName);
 

@@ -18,6 +18,11 @@
 #include <maya/MRampAttribute.h>
 #include <maya/MString.h>
 
+// For XgUtil
+#ifdef _MSC_VER
+#define OSWin_
+#endif
+
 #include <XGen/XgSplineAPI.h>
 #include <XGen/XgUtil.h>
 
