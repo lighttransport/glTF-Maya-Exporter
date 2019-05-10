@@ -12,3 +12,6 @@ displayString -replace -value "Jpeg" m_glTFExporterOptions.kConvertJpeg;
 displayString -replace -value "Png" m_glTFExporterOptions.kConvertPng;
 displayString -replace -value "gltf" m_glTFExporterOptions.kGltf;
 displayString -replace -value "glb" m_glTFExporterOptions.kGlb;
+
+displayString -replace -value "CyHair" m_glTFExporterOptions.kHairFormatCyhair;
+displayString -replace -value "XPD" m_glTFExporterOptions.kHairFormatXPD;
