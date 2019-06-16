@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <regex>
 
 #include <glm/glm.hpp>
 
@@ -55,6 +56,22 @@ namespace kml
     } // namespace ns
 
 #ifdef ENABLE_BUILD_WITH_DRACO
+
+    bool IsJOINTS(const std::string &name) {
+        std::regex re("JOINTS_\\d");
+
+        std::smatch match;
+        // TODO(LTE): Validate number is in valid range.
+        return std::regex_search(name, match, re);
+    }
+
+    bool IsWEIGHTS(const std::string &name) {
+        std::regex re("WEIGHTS_\\d");
+
+        std::smatch match;
+        // TODO(LTE): Validate number is in valid range.
+        return std::regex_search(name, match, re);
+    }
 
     template <class T>
     struct DracoTraits
@@ -151,11 +168,11 @@ namespace kml
         {
             return draco::GeometryAttribute::Type::COLOR;
         }
-        if (name == "JOINTS_0")
+        if (IsJOINTS(name))
         {
             return draco::GeometryAttribute::Type::GENERIC;
         }
-        if (name == "WEIGHTS_0")
+        if (IsWEIGHTS(name))
         {
             return draco::GeometryAttribute::Type::GENERIC;
         }
@@ -228,8 +245,9 @@ namespace kml
 
         //Add buffers
         {
+            // TODO(LTE): Support more joints and weights attribute.
             static const char* ATTRS[] = {
-                "POSITION", "TEXCOORD_0", "TEXCOORD_1", "NORMAL", "COLOR_0", "JOINTS_0", "WEIGHTS_0", "TANGENT", NULL};
+                "POSITION", "TEXCOORD_0", "TEXCOORD_1", "NORMAL", "COLOR_0", "JOINTS_0", "JOINTS_1", "JOINTS_2", "JOINTS_3", "WEIGHTS_0", "WEIGHTS_1", "WEIGHTS_2", "WEIGHTS_3", "TANGENT", NULL};
             int i = 0;
             while (ATTRS[i])
             {
