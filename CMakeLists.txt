@@ -125,7 +125,7 @@ if(GLTF_MAYA_EXPORTER_BUILD_MAYA_GLTF_EXPORTER
   set(XGEN_INCLUDE_PATH ${GLTF_MAYA_EXPORTER_MAYA_PATH}/plug-ins/xgen/include)
   set(XGEN_LIBRARY_PATH ${GLTF_MAYA_EXPORTER_MAYA_PATH}/plug-ins/xgen/lib/)
   if(WIN32)
-    set(XGEN_LIBS libAdskXGen)
+	  set(XGEN_LIBS libAdskSeExpr libAdskXGen libAdskXpd)
   else()
     set(XGEN_LIBS AdskXGen)
   endif(WIN32)
@@ -198,122 +198,46 @@ elseif(UNIX)
 endif()
 
 if(GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD)
-  set(GRPC_AS_SUBMODULE On)
-  #
-  # Experimental. Use gRPC for communication
-  #
-
-  if (WIN32)
-    # For gRPC
-    add_definitions("-D_WIN32_WINNT=0x600")
-  endif(WIN32)
-
-  if(GRPC_AS_SUBMODULE)
-    # One way to build a projects that uses gRPC is to just include the entire
-    # gRPC project tree via "add_subdirectory". This approach is very simple to
-    # use, but the are some potential disadvantages: * it includes gRPC's
-    # CMakeLists.txt directly into your build script without and that can make
-    # gRPC's internal setting interfere with your own build. * depending on
-    # what's installed on your system, the contents of submodules in gRPC's
-    # third_party/* might need to be available (and there might be additional
-    # prerequisites required to build them). Consider using the gRPC_*_PROVIDER
-    # options to fine-tune the expected behavior.
-    #
-    # A more robust approach to add dependency on gRPC is using cmake's
-    # ExternalProject_Add (see cmake_externalproject/CMakeLists.txt).
-
-    # Include the gRPC's cmake build (normally grpc source code would live in a
-    # git submodule called "third_party/grpc", but this example lives in the
-    # same repository as gRPC sources, so we just look a few directories up)
-    add_subdirectory(${CMAKE_SOURCE_DIR}/externals/grpc
-                     ${CMAKE_CURRENT_BINARY_DIR}/grpc EXCLUDE_FROM_ALL)
-    message(STATUS "Using gRPC via add_subdirectory.")
-
-    # After using add_subdirectory, we can now use the grpc targets directly
-    # from this build. set(_PROTOBUF_LIBPROTOBUF libprotobuf)
-    # set(_PROTOBUF_PROTOC $<TARGET_FILE:protoc>)
-    set(_GRPC_GRPCPP_UNSECURE grpc++_unsecure)
-    set(_GRPC_CPP_PLUGIN_EXECUTABLE $<TARGET_FILE:grpc_cpp_plugin>)
-  else()
-    # This branch assumes that gRPC and all its dependencies are already
-    # installed on this system, so they can be located by find_package().
-
-    # Find Protobuf installation Looks for protobuf-config.cmake file installed
-    # by Protobuf's cmake installation.
-    set(protobuf_MODULE_COMPATIBLE TRUE)
-    find_package(Protobuf CONFIG REQUIRED)
-    message(STATUS "Using protobuf ${protobuf_VERSION}")
-
-    set(_PROTOBUF_LIBPROTOBUF protobuf::libprotobuf)
-    set(_PROTOBUF_PROTOC $<TARGET_FILE:protobuf::protoc>)
-
-    # Find gRPC installation Looks for gRPCConfig.cmake file installed by gRPC's
-    # cmake installation.
-    find_package(gRPC CONFIG REQUIRED)
-    message(STATUS "Using gRPC ${gRPC_VERSION}")
-
-    set(_GRPC_GRPCPP_UNSECURE gRPC::grpc++_unsecure)
-    set(_GRPC_CPP_PLUGIN_EXECUTABLE $<TARGET_FILE:gRPC::grpc_cpp_plugin>)
-  endif()
-
-  # Proto file get_filename_component(hotreload_proto
-  # "${CMAKE_SOURCE_DIR}/src/hotreload/hotreload.proto" ABSOLUTE)
-  # get_filename_component(hotreload_proto_path "${hotreload_proto}" PATH)
-
-  # Generated sources set(hotreload_proto_srcs
-  # "${CMAKE_CURRENT_BINARY_DIR}/hotreload.pb.cc") set(hotreload_proto_hdrs
-  # "${CMAKE_CURRENT_BINARY_DIR}/hotreload.pb.h") set(hotreload_grpc_srcs
-  # "${CMAKE_CURRENT_BINARY_DIR}/hotreload.grpc.pb.cc") set(hotreload_grpc_hdrs
-  # "${CMAKE_CURRENT_BINARY_DIR}/hotreload.grpc.pb.h") add_custom_command(
-  # OUTPUT "${hotreload_proto_srcs}" "${hotreload_proto_hdrs}"
-  # "${hotreload_grpc_srcs}" "${hotreload_grpc_hdrs}" COMMAND
-  # ${_PROTOBUF_PROTOC} ARGS --grpc_out "${CMAKE_CURRENT_BINARY_DIR}" --cpp_out
-  # "${CMAKE_CURRENT_BINARY_DIR}" -I "${hotreload_proto_path}" --plugin=protoc-
-  # gen-grpc="${_GRPC_CPP_PLUGIN_EXECUTABLE}" "${hotreload_proto}" DEPENDS
-  # "${hotreload_proto}")
 
   # Include generated *.pb.h files
   # include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
   # some protobuf headers are still required even when using flatbuffer serialization.
-  include_directories("${CMAKE_SOURCE_DIR}/externals/grpc/third_party/protobuf/src/")
-
-  # gRPC header files.
-  include_directories("${CMAKE_SOURCE_DIR}/externals/grpc/include")
+  #include_directories("${CMAKE_SOURCE_DIR}/externals/grpc/third_party/protobuf/src/")
 
   #
   # Experimental. Use flatbuffers for serialization
   #
 
-  # [flatbuffers]
-  set(FLATBUFFERS_BUILD_TESTS Off CACHE INTERNAL "" FORCE)
-  set(FLATBUFFERS_BUILD_FLATHASH Off CACHE INTERNAL "" FORCE)
-  set(FLATBUFFERS_INSTALL Off CACHE INTERNAL "" FORCE)
+  ## [flatbuffers]
+  #set(FLATBUFFERS_BUILD_TESTS Off CACHE INTERNAL "" FORCE)
+  #set(FLATBUFFERS_BUILD_FLATHASH Off CACHE INTERNAL "" FORCE)
+  #set(FLATBUFFERS_INSTALL Off CACHE INTERNAL "" FORCE)
 
-  add_subdirectory(${CMAKE_SOURCE_DIR}/externals/flatbuffers)
+  #add_subdirectory(${CMAKE_SOURCE_DIR}/externals/flatbuffers)
 
-  # Flatbuffer header files.
-  include_directories("${CMAKE_SOURCE_DIR}/externals/flatbuffers/include")
+  ## Flatbuffer header files.
+  #include_directories("${CMAKE_SOURCE_DIR}/externals/flatbuffers/include")
 
-  # Assume `$BUILD/externals/flatbuffers/flatc`
-  set(_FLATBUFFER_FLATC $<TARGET_FILE:flatc>)
+  ## Assume `$BUILD/externals/flatbuffers/flatc`
+  #set(_FLATBUFFER_FLATC $<TARGET_FILE:flatc>)
 
-  # Flatbuffer file
-  get_filename_component(hotreload_fbs
-                         "${CMAKE_SOURCE_DIR}/src/hotreload/hotreload.fbs"
-                         ABSOLUTE)
-  get_filename_component(hotreload_fbs_path "${hotreload_fbs}" PATH)
+  ## Flatbuffer file
+  #get_filename_component(hotreload_fbs
+  #                       "${CMAKE_SOURCE_DIR}/src/hotreload/hotreload.fbs"
+  #                       ABSOLUTE)
+  #get_filename_component(hotreload_fbs_path "${hotreload_fbs}" PATH)
 
-  # Generated sources
-  set(hotreload_fb_hdrs "${CMAKE_CURRENT_BINARY_DIR}/hotreload_generated.h")
-  set(hotreload_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/hotreload.grpc.fb.cc")
-  set(hotreload_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/hotreload.grpc.fb.h")
-  add_custom_command(OUTPUT "${hotreload_fb_hdrs}" "${hotreload_grpc_srcs}"
-                            "${hotreload_grpc_hdrs}"
-                     COMMAND ${_FLATBUFFER_FLATC}
-                             ARGS -o "${CMAKE_CURRENT_BINARY_DIR}"
-                             --grpc -c "${hotreload_fbs}"
-                     DEPENDS "${hotreload_fbs}")
+  ## Generated sources
+  #set(hotreload_fb_hdrs "${CMAKE_CURRENT_BINARY_DIR}/hotreload_generated.h")
+  ##set(hotreload_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/hotreload.grpc.fb.cc")
+  ##set(hotreload_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/hotreload.grpc.fb.h")
+  #add_custom_command(OUTPUT "${hotreload_fb_hdrs}" "${hotreload_grpc_srcs}"
+  #                          "${hotreload_grpc_hdrs}"
+  #                   COMMAND ${_FLATBUFFER_FLATC}
+  #                           ARGS -o "${CMAKE_CURRENT_BINARY_DIR}"
+  #                           --grpc -c "${hotreload_fbs}"
+  #                   DEPENDS "${hotreload_fbs}")
 
   set(EXPORTER_LOGIC_PLUGIN_NAME "exporter_logic")
 
@@ -322,15 +246,12 @@ if(GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD)
               ./src/hotreload/HotReloadExporterLogic.cc
               ./src/hotreload/XGenSplineToCyHair.cc
               ./src/hotreload/XGenSplineToXPD.cc
-              ./src/hotreload/cyhair-writer.cc
-              ${hotreload_fb_srcs}
-              ${hotreload_grpc_srcs})
+              ./src/hotreload/XGenSplineToXPD.cc
+              ./src/hotreload/cyhair-writer.cc)
 
   # Must link with OpenMaya otherwise undefined symbol error happens when
   # loading dll(Linux only?).
   target_link_libraries(${EXPORTER_LOGIC_PLUGIN_NAME}
-                        ${_GRPC_GRPCPP_UNSECURE}
-                        flatbuffers
                         ${XGEN_LIBS}
                         OpenMaya
                         OpenMayaAnim # For SkinCluster
@@ -358,31 +279,30 @@ if(GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD)
       "-shared -m64 -g -pthread -pipe -D_BOOL -DLINUX -DLINUX_64 -DFUNCPROTO -DREQUIRE_IOSTREAM -fPIC -Wno-deprecated -fno-gnu-keywords -Wl,-Bsymbolic"
     )
 
-  #
-  # Build dummy server
-  #
-  if (WIN32)
-    # Don't build dummy server for a while.
-    # If we need to build dummy server on windows, we must set _WIN32_WINNT >= 0x600
-    # add_definitions("-D_WIN32_WINNT=0x600")
-  else()
-    set(DUMMY_SERVER_SOURCES ./src/dummyserver/dummy-server.cc)
+  ##
+  ## Build dummy server
+  ##
+  #if (WIN32)
+  #  # Don't build dummy server for a while.
+  #  # If we need to build dummy server on windows, we must set _WIN32_WINNT >= 0x600
+  #  # add_definitions("-D_WIN32_WINNT=0x600")
+  #else()
+  #  set(DUMMY_SERVER_SOURCES ./src/dummyserver/dummy-server.cc)
 
-    add_executable(dummy_server
-                ${DUMMY_SERVER_SOURCES}
-                ${hotreload_fb_srcs}
-                ${hotreload_grpc_srcs})
+  #  add_executable(dummy_server
+  #              ${DUMMY_SERVER_SOURCES}
+  #              ${hotreload_fb_srcs})
 
-    # Must link with OpenMaya otherwise undefined symbol error happens when
-    # loading dll(Linux only?).
-    target_link_libraries(dummy_server
-                          ${_GRPC_GRPCPP_UNSECURE}
-                          flatbuffers)
+  #  # Must link with OpenMaya otherwise undefined symbol error happens when
+  #  # loading dll(Linux only?).
+  #  target_link_libraries(dummy_server
+  #                        ${_GRPC_GRPCPP_UNSECURE}
+  #                        flatbuffers)
+  #endif()
 
-    add_definitions("-DGLTF_EXPORTER_ENABLE_HOT_RELOAD")
-    list(APPEND EXTRA_GLTF_EXPORTER_SOURCES ./src/hotreload/HotReloadExporter.cc
+  add_definitions("-DGLTF_EXPORTER_ENABLE_HOT_RELOAD")
+  list(APPEND EXTRA_GLTF_EXPORTER_SOURCES ./src/hotreload/HotReloadExporter.cc
                 ./src/hotreload/HotReloadExporterPlatform.cc)
-  endif()
 
 else()
   list(APPEND EXTRA_GLTF_EXPORTER_SOURCES

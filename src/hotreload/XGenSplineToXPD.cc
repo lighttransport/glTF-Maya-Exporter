@@ -28,6 +28,10 @@
 
 #include <xpd/Xpd.h>
 
+#include <picojson/picojson.h>
+
+// TODO(LTE): Export widthRamp information(as separated JSON?)
+
 namespace
 {
     enum RampInterpolation
