@@ -99,9 +99,9 @@ global proc int glTFExporterOptions ( string $parent,
 					}
 				} else if ($optionBreakDown[0] == "hair_format") {
 					if ($optionBreakDown[1] == "0") {
-						radioButtonGrp -e -sl 2 hairFormat;
-					} else {
 						radioButtonGrp -e -sl 1 hairFormat;
+					} else {
+						radioButtonGrp -e -sl 2 hairFormat;
 					}
 				}
 			}
@@ -142,9 +142,9 @@ global proc int glTFExporterOptions ( string $parent,
 		}
 
 		if (`radioButtonGrp -q -sl hairFormat` == 1) {
-			$currentOptions = $currentOptions + ";hair_format=1"; // XPD
-		} else {
 			$currentOptions = $currentOptions + ";hair_format=0"; // CyHair
+		} else {
+			$currentOptions = $currentOptions + ";hair_format=1"; // XPD
 		}
 
 		eval($resultCallback+" \""+$currentOptions+"\"");

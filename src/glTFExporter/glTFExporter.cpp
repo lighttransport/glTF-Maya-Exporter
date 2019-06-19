@@ -55,10 +55,10 @@
 #include <maya/MFnMatrixData.h>
 #include <maya/MFnMesh.h>
 #include <maya/MFnPhongEShader.h>
+#include <maya/MFnPluginData.h>
 #include <maya/MFnSet.h>
 #include <maya/MFnSkinCluster.h>
 #include <maya/MFnTransform.h>
-#include <maya/MFnPluginData.h>
 #include <maya/MGlobal.h>
 #include <maya/MIOStream.h>
 #include <maya/MIntArray.h>
@@ -92,6 +92,7 @@
 #include "hotreload/HotReloadExporter.h"
 #else
 #include "hotreload/XGenSplineToCyHair.h"
+#include "hotreload/XGenSplineToXPD.h"
 #endif
 
 #include <fstream>
@@ -122,7 +123,6 @@
 #include "ProgressWindow.h"
 #include "murmur3.h"
 
-
 #if defined(_WIN32)
 //#define strcasecmp stricmp
 #elif defined(OSMac_)
@@ -143,9 +143,8 @@ extern "C" Boolean createMacFile(const char* fileName, FSRef* fsRef, long creato
 
 #if GLTF_EXPORTER_ENABLE_HOT_RELOAD
 // FIXME(LTE): Define global variables in other location, not here.
-HotReloadableExporter *gHotReloadableExporter = nullptr;
+HotReloadableExporter* gHotReloadableExporter = nullptr;
 #endif
-
 
 static std::string GetDirectoryPath(const std::string& path)
 {
@@ -392,7 +391,7 @@ static std::string GetTempDirectory()
     strcpy(buffer.data(), tmpdir.c_str());
     buffer[tmpdir.size()] = '\0';
 
-    char *tempname = mkdtemp(buffer.data());
+    char* tempname = mkdtemp(buffer.data());
     // TODO: Handle failure case.
     assert(tempname);
 
@@ -689,7 +688,7 @@ MStatus glTFExporter::writer(const MFileObject& file, const MString& options, Fi
     int output_invisible_nodes = 0;        //0:
     int hair_format = 0;                   //0:cyhair, 1: xpd
 
-    int force_output = 0;                  //0: Force output(overwrite) glTF files
+    int force_output = 0; //0: Force output(overwrite) glTF files
 
     switch ((int)this->mode_)
     {
@@ -890,6 +889,8 @@ MStatus glTFExporter::writer(const MFileObject& file, const MString& options, Fi
     opts->SetInt("output_invisible_nodes", output_invisible_nodes);
 
     opts->SetInt("hair_format", hair_format);
+
+    fprintf(stderr, "hair_format %d", hair_format);
 
     opts->SetString("generator_name", generator_name);
 
@@ -2577,11 +2578,14 @@ static MStatus WriteXGenHairToGLTF(
     TexturePathManager& texManager,
     std::map<int, std::shared_ptr<kml::Material> >& materials,
     std::vector<std::shared_ptr<kml::Node> >& nodes,
-    std::vector<std::pair<std::string, int>> &xgen_corrections,
-    const MString& dirname, const MDagPath& dagPath) {
+    std::vector<std::pair<std::string, int> >& xgen_corrections,
+    const MString& dirname, const MDagPath& dagPath)
+{
 
     std::shared_ptr<kml::Options> opts = kml::Options::GetGlobalOptions();
     bool hair_format_xpd = opts->GetInt("hair_format") > 0;
+
+    fprintf(stderr, "hair_format_xpd %d, hair_format", hair_format_xpd, opts->GetInt("hair_format"));
 
     // FIXME(LTE): Currently we only support `onefile` mode for exporting hair data.
 
@@ -2594,22 +2598,34 @@ static MStatus WriteXGenHairToGLTF(
     input.cv_repeat = false;
 
     XGenSplineProcessOutput output;
+    input.base_dir = dirname.asChar();
     input.dagPath = dagPath;
     input.hair_format = hair_format_xpd ? "xpd" : "cyhair";
 
 #if GLTF_EXPORTER_ENABLE_HOT_RELOAD
     // Invoke function through dll hotreload
-    if (!gHotReloadableExporter) {
-      gHotReloadableExporter = reinterpret_cast<HotReloadableExporter*>(HotReloadableExporter::creator());
-      gHotReloadableExporter->postConstructor();
+    if (!gHotReloadableExporter)
+    {
+        gHotReloadableExporter = reinterpret_cast<HotReloadableExporter*>(HotReloadableExporter::creator());
+        gHotReloadableExporter->postConstructor();
     }
     gHotReloadableExporter->export_func(input, &output);
 #else
-    bool ret = XGenSplineToCyHair(input, &output);
+    bool ret;
+
+    if (hair_format_xpd)
+    {
+        ret = XGenSplineToXPD(input, &output);
+    }
+    else {
+        ret = XGenSplineToCyHair(input, &output);
+    }
+
     (void)ret;
 #endif
 
-    if ((!hair_format_xpd) && (output.cyhair_data.size() == 0)) {
+    if ((!hair_format_xpd) && (output.cyhair_data.size() == 0))
+    {
         // ???
         MGlobal::displayError("hair data is zero");
         return MS::kFailure;
@@ -2618,7 +2634,8 @@ static MStatus WriteXGenHairToGLTF(
     int materialID = -1;
 
     // TODO(LTE): Support texture for hair material.
-    if (!output.shader.isNull()) {
+    if (!output.shader.isNull())
+    {
 
         int shaderID = (int)MObjectHandle::objectHashCode(output.shader);
         fprintf(stderr, "shaderID = %d\n", shaderID);
@@ -2637,12 +2654,12 @@ static MStatus WriteXGenHairToGLTF(
     // For XPD, file is already written to a file.
 
     // Write out cyhair file.
-    if (!hair_format_xpd) {
-        std::string base_path = dirname.asChar();
+    if (!hair_format_xpd)
+    {
 
         std::string cyhair_path = MakeDirectoryPath(std::string(dagPath.partialPathName().asChar())) + ".hair";
 
-        std::string cyhairFilePath = base_path + "/" + cyhair_path;
+        std::string cyhairFilePath = input.base_dir + "/" + cyhair_path;
         //node->SetPath(gltfAbsPath);
 
         //MakeDirectory(dir_path);
@@ -2652,19 +2669,20 @@ static MStatus WriteXGenHairToGLTF(
 
         {
             std::ofstream ofs(cyhairFilePath, std::ofstream::binary);
-            if (!ofs) {
+            if (!ofs)
+            {
                 std::cerr << "glTFExporter: Couldn't open a file for write" << cyhairFilePath << std::endl;
-            } else {
-                ofs.write(reinterpret_cast<const char *>(output.cyhair_data.data()), output.cyhair_data.size());
+            }
+            else
+            {
+                ofs.write(reinterpret_cast<const char*>(output.cyhair_data.data()), output.cyhair_data.size());
             }
         }
-
 
         xgen_corrections.push_back({cyhair_path, materialID});
     }
 
     return status;
-
 }
 
 static MStatus WriteGLTF(
@@ -3005,14 +3023,15 @@ static void NodesToJson(picojson::object& root, const std::vector<std::shared_pt
 
         // Hair extras. Assume single scene in .glTF
         // Assume root node has hair extras
-        const std::vector<std::pair<std::string, int>> &hairs = nodes[i]->GetHairExtras();
+        const std::vector<std::pair<std::string, int> >& hairs = nodes[i]->GetHairExtras();
         if (hairs.size() > 0)
         {
             fprintf(stderr, "hair extraa");
 
             picojson::object o;
 
-            for (size_t j = 0; j < hairs.size(); j++) {
+            for (size_t j = 0; j < hairs.size(); j++)
+            {
                 // FIXME(LTE): Use (unique) node name
                 std::string name = "hair_" + std::to_string(j);
 
@@ -3024,7 +3043,6 @@ static void NodesToJson(picojson::object& root, const std::vector<std::shared_pt
                 item["material"] = picojson::value(double(0)); // TODO(LTE):
 
                 o[name] = picojson::value(item);
-
             }
 
             picojson::object hairs;
@@ -3032,7 +3050,6 @@ static void NodesToJson(picojson::object& root, const std::vector<std::shared_pt
 
             item["extras"] = picojson::value(hairs);
         }
-
 
         scenes.push_back(picojson::value(item));
     }
@@ -3345,7 +3362,8 @@ static bool CheckGLTFDirectoryAlreadyExists(const std::string& path)
             {
                 bool force_output = opts->GetInt("force_output") > 0;
                 fprintf(stderr, "force_output %d\n", force_output);
-                if (force_output) {
+                if (force_output)
+                {
                     return true;
                 }
 
@@ -3398,35 +3416,36 @@ static bool CheckGLTFDirectoryAlreadyExists(const std::string& path)
 // Check if selected dag path is XGen description.
 //
 // TODO(LTE): Use XGen API?
-static bool IsXGenDescriptionDag(const MDagPath &dagPath)
+static bool IsXGenDescriptionDag(const MDagPath& dagPath)
 {
-  // There is a `outRenderData` for XGen descripiton shape node.
-  // e.g. `description1_Shape.outRenderData`
+    // There is a `outRenderData` for XGen descripiton shape node.
+    // e.g. `description1_Shape.outRenderData`
 
-  MStatus status;
+    MStatus status;
 
-  MFnDagNode node(dagPath, &status);
-  if (MStatus::kSuccess != status)
-  {
-      return false;
-  }
+    MFnDagNode node(dagPath, &status);
+    if (MStatus::kSuccess != status)
+    {
+        return false;
+    }
 
-  MPlug outRenderDataPlug = node.findPlug("outRenderData");
-  if (MStatus::kSuccess != status)
-  {
-      return false;
-  }
+    MPlug outRenderDataPlug = node.findPlug("outRenderData");
+    if (MStatus::kSuccess != status)
+    {
+        return false;
+    }
 
-  MObject obj = outRenderDataPlug.asMObject();
-  MPxData *data = MFnPluginData(obj).data();
+    MObject obj = outRenderDataPlug.asMObject();
+    MPxData* data = MFnPluginData(obj).data();
 
-  if (data) {
-    // Assume there is XGen data attached to this dag.
-    MGlobal::displayInfo("XGen node : " + dagPath.fullPathName());
-    return true;
-  }
+    if (data)
+    {
+        // Assume there is XGen data attached to this dag.
+        MGlobal::displayInfo("XGen node : " + dagPath.fullPathName());
+        return true;
+    }
 
-  return false;
+    return false;
 }
 
 MStatus glTFExporter::exportSelected(const MString& fname)
@@ -3487,7 +3506,8 @@ MStatus glTFExporter::exportSelected(const MString& fname)
 
             if (status)
             {
-                if (IsXGenDescriptionDag(dagPath)) {
+                if (IsXGenDescriptionDag(dagPath))
+                {
                     // XGen Hair
                     dagPaths.push_back(dagPath);
                     continue;
@@ -4609,7 +4629,7 @@ MStatus glTFExporter::exportProcess(const MString& fname, const std::vector<MDag
     MaterialMapType materials;
     NodeVecType nodes;
 
-    std::vector<std::pair<std::string, int>> xgenCorrectionAndMaterialPairs; // list of (hair filename, hair material id)
+    std::vector<std::pair<std::string, int> > xgenCorrectionAndMaterialPairs; // list of (hair filename, hair material id)
     std::shared_ptr<ProgressWindow> progWindow;
     {
         int prog = 100;
@@ -4641,7 +4661,8 @@ MStatus glTFExporter::exportProcess(const MString& fname, const std::vector<MDag
                     if (dagPath.hasFn(MFn::kMesh))
                     {
                         status = WriteGLTF(texManager, materials, nodes, MString(dir_path.c_str()), dagPath);
-                    } else if (IsXGenDescriptionDag(dagPath))
+                    }
+                    else if (IsXGenDescriptionDag(dagPath))
                     {
                         status = WriteXGenHairToGLTF(texManager, materials, nodes, xgenCorrectionAndMaterialPairs, MString(dir_path.c_str()), dagPath);
                     }
@@ -4688,7 +4709,6 @@ MStatus glTFExporter::exportProcess(const MString& fname, const std::vector<MDag
     {
         CopyTextureFiles(texManager);
     }
-
 
     //write files when "output_onefile"
     if (onefile)

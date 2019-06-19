@@ -7,6 +7,8 @@
 
 struct XGenSplineProcessInput
 {
+    std::string base_dir; // base export directory(used for XPD writer)
+
     std::string hair_format = "cyhair";  // "cyhair" or "xpd"
 
     MDagPath dagPath; // DagPath of xgen IG node(collection)

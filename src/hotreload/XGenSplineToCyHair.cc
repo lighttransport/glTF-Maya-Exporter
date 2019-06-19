@@ -21,7 +21,9 @@
 
 // For XgUtil
 #ifdef _MSC_VER
+#ifndef OSWin_
 #define OSWin_
+#endif
 #endif
 
 #include <XGen/XgSplineAPI.h>

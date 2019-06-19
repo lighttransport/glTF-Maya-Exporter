@@ -20,7 +20,9 @@
 
 // For XgUtil
 #ifdef _MSC_VER
+#ifndef OSWin_
 #define OSWin_
+#endif
 #endif
 
 #include <XGen/XgSplineAPI.h>
@@ -28,7 +30,9 @@
 
 #include <xpd/Xpd.h>
 
-#include <picojson/picojson.h>
+#include "glTFExporter/murmur3.h"
+
+//#include <picojson/picojson.h>
 
 // TODO(LTE): Export widthRamp information(as separated JSON?)
 
@@ -58,6 +62,83 @@ namespace
 
         std::vector<RampParameter> widthRamps;
     };
+
+    static char ReplaceForPath(char c)
+    {
+        if (c == '|')
+            return '_';
+        if (c == '\\')
+            return '_';
+        if (c == '/')
+            return '_';
+        if (c == ':')
+            return '_';
+        if (c == '*')
+            return '_';
+        if (c == '?')
+            return '_';
+        if (c == '"')
+            return '_';
+        if (c == '<')
+            return '_';
+        if (c == '>')
+            return '_';
+
+        return c;
+    }
+
+    static std::string ReplaceForPath(const std::string& path)
+    {
+        std::stringstream ss;
+
+        for (size_t i = 0; i < path.size(); i++)
+        {
+            ss << ReplaceForPath(path[i]);
+        }
+        return ss.str();
+    }
+
+    static char ToChar(int n)
+    {
+        n = std::abs(n) % 50;
+        if (0 <= n && n < 25)
+        {
+            return 'a' + n;
+        }
+        else
+        {
+            return 'A' + (n - 25);
+        }
+    }
+
+    static std::string MakeForPath(const std::string& path)
+    {
+        static const int MAX_FNAME = 32; // _MAX_FNAME 256 / 8
+        static const uint32_t SEED = 42;
+        if (path.size() <= MAX_FNAME)
+        {
+            return path;
+        }
+        else
+        {
+            char buffer[16 + 1] = {};
+            MurmurHash3_x64_128(path.c_str(), path.size(), SEED, (void*)buffer);
+            for (int k = 0; k < 16; k++)
+            {
+                buffer[k] = ToChar(buffer[k]);
+            }
+            std::string path2 = buffer;
+            return path2;
+        }
+    }
+
+    static std::string MakeDirectoryPath(const std::string& path)
+    {
+        std::string tpath = ReplaceForPath(path);
+        tpath = MakeForPath(tpath);
+        tpath = ReplaceForPath(tpath);
+        return tpath;
+    }
 
     ///
     /// Get a material(ShadingGroup in Maya) assigned to XGen node.
@@ -275,9 +356,9 @@ bool XGenSplineToXPD(const XGenSplineProcessInput& input, XGenSplineProcessOutpu
     const MDagPath dag = input.dagPath;
     MString fullPathName = dag.fullPathName();
 
-    MGlobal::displayInfo("Exporting " + fullPathName);
+    MGlobal::displayInfo("XPD: Exporting " + fullPathName);
 
-    const char* str = fullPathName.asChar();
+    //const char* str = fullPathName.asChar();
 
     WidthParameter width_parameter;
     {
@@ -337,7 +418,8 @@ bool XGenSplineToXPD(const XGenSplineProcessInput& input, XGenSplineProcessOutpu
     MObject shaderObject = GetMaterialOfXGenNode(dag);
     output->shader = shaderObject;
 
-    MString output_name = dag.fullPathName(); // FIXME(LTE):
+
+    MString output_name = dag.partialPathName(); // FIXME(LTE):
 
     // for each meshId
     for (const std::string& meshId : meshIds)
@@ -352,6 +434,11 @@ bool XGenSplineToXPD(const XGenSplineProcessInput& input, XGenSplineProcessOutpu
         {
             xpdFilename = output_name.asChar();
         }
+
+        // escape characters
+        // FIXME(LTE): There may be still a chance to create filename conaining directory path.
+        xpdFilename = MakeDirectoryPath(xpdFilename + ".xpd");
+
 
         std::map<unsigned int, std::vector<std::vector<unsigned int> > > faceToDataMap;
         unsigned int primCount = 0; // accumulated
@@ -426,13 +513,19 @@ bool XGenSplineToXPD(const XGenSplineProcessInput& input, XGenSplineProcessOutpu
         safevector<std::string> blocks;
         blocks.push_back("BakedGroom");
 
+        std::string xpdFilePath = input.base_dir + "/" + xpdFilename;
+
         constexpr int PRIM_ATTR_VERSION = 3;
-        XpdWriter* xFile = XpdWriter::open(xpdFilename, maxFaceId + 1,
+        XpdWriter* xFile = XpdWriter::open(xpdFilePath, maxFaceId + 1,
                                            Xpd::Spline, PRIM_ATTR_VERSION,
                                            Xpd::Object, blocks,
                                            float(sample_time),
                                            cvCountPerPrim, &keys);
 
+        if (xFile == nullptr) {
+            MGlobal::displayError("Faile to open XPD file to write. filepath = " + MString(xpdFilePath.c_str()));
+            return false;
+        }
         // iterate each face
         for (unsigned int faceId = 0; faceId <= maxFaceId; faceId++)
         {
@@ -488,6 +581,8 @@ bool XGenSplineToXPD(const XGenSplineProcessInput& input, XGenSplineProcessOutpu
         }
 
         xFile->close();
+
+        MGlobal::displayInfo("Wrote XPD file : " + MString(xpdFilePath.c_str()));
 
     } // meshId
 
