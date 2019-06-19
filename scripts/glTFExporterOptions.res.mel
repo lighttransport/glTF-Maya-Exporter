@@ -14,4 +14,4 @@ displayString -replace -value "gltf" m_glTFExporterOptions.kGltf;
 displayString -replace -value "glb" m_glTFExporterOptions.kGlb;
 
 displayString -replace -value "CyHair" m_glTFExporterOptions.kHairFormatCyhair;
-displayString -replace -value "XPD" m_glTFExporterOptions.kHairFormatXPD;
+displayString -replace -value "XPD" m_glTFExporterOptions.kHairFormatXpd;
