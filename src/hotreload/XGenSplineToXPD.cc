@@ -17,6 +17,7 @@
 #include <maya/MPxData.h>
 #include <maya/MRampAttribute.h>
 #include <maya/MString.h>
+#include <maya/MAnimControl.h>
 
 // For XgUtil
 #ifdef _MSC_VER
@@ -383,7 +384,13 @@ bool XGenSplineToXPD(const XGenSplineProcessInput& input, XGenSplineProcessOutpu
     std::cout << "binary size = " + std::to_string(binary_data.str().size()) << "\n";
 
     XGenSplineAPI::XgFnSpline _splines;
-    const float sample_time = 0.0f; // TODO(LTE)
+    MTime tm = MAnimControl::currentTime();
+
+    // TODO(LTE): Assume time == current frame number.
+    double curr_time = tm.value();
+    const float sample_time = (curr_time < 0.0) ? 0.0 : curr_time;
+
+    std::cout << "sample_time = " << sample_time << "\n";
 
     const auto start_time = std::chrono::system_clock::now();
 
@@ -406,7 +413,6 @@ bool XGenSplineToXPD(const XGenSplineProcessInput& input, XGenSplineProcessOutpu
     }
 
     size_t meshNum = meshIds.size();
-    std::cerr << "meshNum = " << meshNum << std::endl;
     if (meshNum == 0)
     {
         XGError("No spline data found from : " + std::string(fullPathName.asChar()));
@@ -444,7 +450,7 @@ bool XGenSplineToXPD(const XGenSplineProcessInput& input, XGenSplineProcessOutpu
         unsigned int primCount = 0; // accumulated
         unsigned int maxFaceId = 0;
         unsigned int curItemNum = 1;
-        unsigned int cvCountPerPrim = 5; // this will be filled in splineIt iterator loop and also referenced in subsequent stage.
+        unsigned int cvCountPerPrim = 5; // Initialized as default value. this will be updated in splineIt iterator loop and also referenced in subsequent stage.
 
         std::vector<const SgVec2f*> uvArray;
         std::vector<const SgVec3f*> posArray;
@@ -515,6 +521,14 @@ bool XGenSplineToXPD(const XGenSplineProcessInput& input, XGenSplineProcessOutpu
 
         std::string xpdFilePath = input.base_dir + "/" + xpdFilename;
 
+        // NOTE(LTE): We cannot use Local coordinate, which requires all of
+        // face ids of bound mesh.
+        // When you read XPD with Local coordinate, Maya would crashes.
+        //
+        // To create XPD with Local coordinate, you can first load
+        // XPD(in Object coordinate) in legacy XGen, then use Groom bake
+        // modifier to save XPD width Local coordinate(and XPD also stores
+        // list of all face ids of bound mesh)
         constexpr int PRIM_ATTR_VERSION = 3;
         XpdWriter* xFile = XpdWriter::open(xpdFilePath, maxFaceId + 1,
                                            Xpd::Spline, PRIM_ATTR_VERSION,

@@ -18,6 +18,7 @@
 #include <maya/MPxData.h>
 #include <maya/MRampAttribute.h>
 #include <maya/MString.h>
+#include <maya/MAnimControl.h>
 
 // For XgUtil
 #ifdef _MSC_VER
@@ -269,7 +270,14 @@ bool XGenSplineToCyHair(const XGenSplineProcessInput& input, XGenSplineProcessOu
     std::cout << "binary size = " + std::to_string(binary_data.str().size()) << "\n";
 
     XGenSplineAPI::XgFnSpline _splines;
-    const float sample_time = 0.0f; // TODO(LTE)
+
+    MTime tm = MAnimControl::currentTime();
+
+    // TODO(LTE): Assume time == current frame number.
+    double curr_time = tm.value();
+    const float sample_time = (curr_time < 0.0) ? 0.0 : curr_time;
+
+    std::cout << "sample_time = " << sample_time << "\n";
 
     const auto start_time = std::chrono::system_clock::now();
 
