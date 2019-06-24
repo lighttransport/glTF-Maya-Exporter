@@ -94,15 +94,11 @@ We support MAYA2017 and MAYA2018 on Windows and macOS, now.
 
 - picojson: https://github.com/kazuho/picojson/
 
-- flatbuffers: https://google.github.io/flatbuffers/
+### Knwn issues
 
-- gRPC: https://github.com/grpc/grpc
+draco fails to build gcc4.8(RHEL7/CentOS7 default compiler)
 
-### Note on gRPC version
-
-We need to use same gRPC version used in flatbuffers package.
-(v1.15.1)
-
+https://github.com/google/draco/issues/406
 
 ## License
 
