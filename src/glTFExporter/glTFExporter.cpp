@@ -1393,15 +1393,31 @@ static std::shared_ptr<kml::Mesh> GetMophTargets(std::shared_ptr<kml::Mesh>& mes
         float weight = fnBlendShapeDeformer.weight(indexList[i]) * envelope;
         for (unsigned int j = 0; j < targetArray.length(); j++)
         {
+            // NOTE(LTE): This will set a target name with the name of Shape object.
+            // It looks there is no way to get a target name shown in Shape editor in C++ API.
+            //
+            // If you want to use the name shown in Shape Editor, you may be required to use Python or MEL interface to access such an information
+            // FYI, the target name shown in Shape Editor may be an alias:
+            //
+            //   blendShapeRenameTargetAlias blendShape1 0 dora;
+            //   aliasAttr dora blendShape1.w[0];
+            //   aliasAttr -q blendShape1.w[0];
+            //   // dora
             MObject targetObj = targetArray[j];
             std::shared_ptr<kml::MorphTarget> target = GetMorphTarget(targetObj);
             MDagPath path;
             MDagPath::getAPathTo(targetObj, path);
             path.pop();
-            std::string name = path.partialPathName().asChar();
+            std::string name = std::string(path.partialPathName().asChar());
+
+	        if (name.empty()) { // this should not happen, but just for safety
+	            name = "target_" + std::to_string(j);
+	        }
+            morph_targets->names.push_back(name);
+
             morph_targets->targets.push_back(target);
             morph_targets->weights.push_back(weight);
-            morph_targets->names.push_back(name);
+
         }
     }
 
