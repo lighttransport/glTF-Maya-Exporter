@@ -246,7 +246,8 @@ if(GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD)
               ./src/hotreload/HotReloadExporterLogic.cc
               ./src/hotreload/XGenSplineToCyHair.cc
               ./src/hotreload/XGenSplineToXPD.cc
-              ./src/hotreload/cyhair-writer.cc)
+              ./src/hotreload/cyhair-writer.cc
+              ./src/glTFExporter/murmur3.c)
 
   # Must link with OpenMaya otherwise undefined symbol error happens when
   # loading dll(Linux only?).
@@ -333,7 +334,7 @@ if(GLTF_MAYA_EXPORTER_BUILD_MAYA_GLTF_EXPORTER)
   set_target_properties(glTFExporter PROPERTIES PREFIX "")
   if(WIN32)
     # It looks xgen lib requires some extra definitions for MSVC target otherwise crashes at runtime
-    # FIXME(LTE): _HAS_ITERATOR_DEBUGGING=0 will fail when Debug build
+    # NOTE(LTE): _HAS_ITERATOR_DEBUGGING=0 maybe required but will fail at a runtime when Debug build
     target_compile_definitions(glTFExporter PUBLIC NDEBUG OSWin_ NT_PLUGIN _USRDLL TBB_USE_DEBUG=0 __TBB_LIB_NAME=tbb.lib Bits64_ _WINDLL) 
     set_target_properties(glTFExporter PROPERTIES SUFFIX ".mll")
   elseif(APPLE)

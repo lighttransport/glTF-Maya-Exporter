@@ -28,6 +28,7 @@ SOFTWARE.
 #include <cstring>
 #include <sstream>
 #include <iostream>
+#include <limits>
 
 namespace cyhair_writer
 {
