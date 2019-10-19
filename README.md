@@ -100,6 +100,11 @@ draco fails to build gcc4.8(RHEL7/CentOS7 default compiler)
 
 https://github.com/google/draco/issues/406
 
+### Windows
+
+Use RelWithDebInfo or Release build.
+Debug build will segfault when exporting hairs(XGen IGS) due to some compilation flag issue with XGen lib.
+
 ## License
 
 This software is MIT License.
