@@ -17,7 +17,7 @@ $ cmake -DGLTF_MAYA_EXPORTER_MAYA_PATH=/usr/autodesk/maya2018/ -Bbuild -H.
 ```
 
 ## Version
-1.5.4
+1.6.0
 
 ## Introduction
 This is the glTF 2.0 exporter for AUTODESK MAYA (
@@ -95,12 +95,6 @@ We support MAYA2017 and MAYA2018 on Windows and macOS, now.
 - glm: https://github.com/g-truc/glm
 
 - picojson: https://github.com/kazuho/picojson/
-
-### Knwn issues
-
-draco fails to build with gcc4.8(RHEL7/CentOS7's default compiler)
-
-https://github.com/google/draco/issues/406
 
 ### Windows
 

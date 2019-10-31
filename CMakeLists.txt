@@ -63,6 +63,7 @@ endif()
 
 # -- draco setting ----------------------------------------------
 if(GLTF_MAYA_EXPORTER_BUILD_WITH_DRACO)
+
   # DRACO setting
   add_subdirectory(externals/draco)
 
@@ -82,7 +83,7 @@ if(GLTF_MAYA_EXPORTER_BUILD_WITH_DRACO)
   set_target_properties(draco_compression_mesh_dec PROPERTIES FOLDER Draco)
   set_target_properties(draco_compression_mesh_enc PROPERTIES FOLDER Draco)
   set_target_properties(draco_core PROPERTIES FOLDER Draco)
-  set_target_properties(draco_core_bit_coders PROPERTIES FOLDER Draco)
+  #set_target_properties(draco_core_bit_coders PROPERTIES FOLDER Draco)
   set_target_properties(draco_dec_config PROPERTIES FOLDER Draco)
   set_target_properties(draco_decoder PROPERTIES FOLDER Draco)
   set_target_properties(draco_enc_config PROPERTIES FOLDER Draco)
