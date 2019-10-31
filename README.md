@@ -41,7 +41,9 @@ We support MAYA2017 and MAYA2018 on Windows and macOS, now.
 
 - [x] Bump mapping support (with Bump2d node)
 
-- [x] Material aiStandardSurface
+- [x] Material aiStandardSurface (USE: GLTF_MAYA_EXPORTER_SUPPORT_LTE_PBR_MATERIAL is ON)
+
+- [x] Material aiStandardHair (USE: GLTF_MAYA_EXPORTER_SUPPORT_LTE_PBR_MATERIAL is ON)
 
 - [ ] Material StingrayPBS
 
@@ -96,7 +98,7 @@ We support MAYA2017 and MAYA2018 on Windows and macOS, now.
 
 ### Knwn issues
 
-draco fails to build gcc4.8(RHEL7/CentOS7 default compiler)
+draco fails to build with gcc4.8(RHEL7/CentOS7's default compiler)
 
 https://github.com/google/draco/issues/406
 
@@ -113,4 +115,4 @@ Copyright (c) 2018 Kashika, Inc.
 ### Third party licenses
 
 * **Hot Reloadable Deformer** example Maya plugin(includes `ssmath`). MIT license.
-
+* aiStanradHair and aiStandardSurface shader parameter exporter by Light Transport Entertainment, Inc.

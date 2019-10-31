@@ -21,9 +21,10 @@
 
 #include "glTFTranslator.h"
 
-#define VENDOR_NAME "Light Transport Entertainment, Inc."
+#define VENDOR_NAME "KASHIKA,Inc. and Light Transport Entertainment, Inc."
 #define PLUGIN_NAME "glTF-Maya-Exporter-LTE"
 #define PLUGIN_VERSION "1.6.0"
+
 #define EXPOTER_NAME_GLTF "GLTF Export"
 #define EXPOTER_NAME_GLB "GLB Export"
 
@@ -49,9 +50,6 @@ static void ShowLicense()
 {
     std::string showText;
     showText += PLUGIN_NAME;
-
-    showText += " based on glTF-Maya-Exporter by Kashika, Inc.";
-
     showText += " ";
     showText += "ver";
     showText += PLUGIN_VERSION;

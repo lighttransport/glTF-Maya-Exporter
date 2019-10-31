@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.2.3)
 # Use solution folders.
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-project("glTF-Maya-Exporter-LTE")
+project("glTF-Maya-Exporter")
 
 # -- options ----------------------------------------------------
 option(GLTF_MAYA_EXPORTER_BUILD_WITH_DRACO "Build with Draco" ON)
@@ -13,11 +13,12 @@ option(GLTF_MAYA_EXPORTER_BUILD_MAYA_VRM_EXPORTER "Build Maya VRM Exporter" ON)
 option(GLTF_MAYA_EXPORTER_BUILD_WITH_HOT_RELOAD
        "Build with hot reload feature(for developer)" OFF)
 option(GLTF_MAYA_EXPORTER_BUILD_SERIALIZER
-       "Build messegae serializer(for developer)" OFF)
+       "Build message serializer(for developer)" OFF)
 option(GLTF_MAYA_EXPORTER_BUILD_CPP_INTERFACE "Build cpp interface and test"
        OFF)
 option(GLTF_MAYA_EXPORTER_WITH_CCACHE
        "Compile with ccache(if available. for developer)" ON)
+option(GLTF_MAYA_EXPORTER_SUPPORT_LTE_PBR_MATERIAL  "Build LTE_PBR_material support" ON)
 
 if(WIN32)
   set(GLTF_MAYA_EXPORTER_MAYA_PATH "C:/Program Files/Autodesk/Maya2018"
@@ -26,6 +27,11 @@ elseif(APPLE)
   set(GLTF_MAYA_EXPORTER_MAYA_PATH "/Applications/Autodesk/maya2018"
       CACHE PATH "Installed Maya Directory")
 endif()
+
+if (GLTF_MAYA_EXPORTER_SUPPORT_LTE_PBR_MATERIAL)
+	add_definitions(-DENABLE_LTE_PBR_MATERIAL)
+endif()
+
 # ===============================================================
 
 set(CMAKE_POSITION_INDEPENDENT_CODE On)
@@ -136,13 +142,16 @@ endif()
 
 set(CMAKE_CXX_STANDARD 11)
 
-include_directories(externals/glm/
-                    externals/
-                    src/
-                    ${BUILD_DIR}/
-                    ${DRACO_SRC_PATH}
-                    ${MAYA_INCLUDE_PATH}
-                    ${XGEN_INCLUDE_PATH})
+include_directories(
+    ${CMAKE_BINARY_DIR}
+    externals/glm/
+    externals/
+    src/
+    ${BUILD_DIR}/
+    ${DRACO_SRC_PATH}
+    ${MAYA_INCLUDE_PATH}
+    ${XGEN_INCLUDE_PATH}
+)
 
 link_directories(${MAYA_LIBRARY_PATH} ${XGEN_LIBRARY_PATH})
 

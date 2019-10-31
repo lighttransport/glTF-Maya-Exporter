@@ -95,6 +95,7 @@
 #include "hotreload/XGenSplineToXPD.h"
 #endif
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -1651,6 +1652,43 @@ static void getColorBalance(const MFnDependencyNode& texNode, kml::ColorBalance*
     colorBalance->m_alphaIsLuminance = texNode.findPlug("alphaIsLuminance").asBool();
 }
 
+static std::string GetWorkspacePath()
+{
+    MString command = "workspace -q -rd;";
+    return MGlobal::executeCommandStringResult(command).asChar();
+}
+
+static std::string GetTexturePath(const std::string& path)
+{
+    std::string texpath = path;
+    if (IsFileExist(texpath))
+    {
+        return texpath;
+    }
+
+    std::string ws = GetWorkspacePath();
+
+    // project path delimitor
+    const std::string pathDelimiter = "//";
+    size_t delim = texpath.find(pathDelimiter);
+    if (delim != std::string::npos)
+    {
+        texpath.erase(0, delim + pathDelimiter.size());
+    }
+    if (IsFileExist(texpath))
+    {
+        return texpath;
+    }
+
+    std::string wsPath = ws + texpath;
+    if (IsFileExist(wsPath))
+    {
+        return wsPath;
+    }
+
+    return "";
+}
+
 static bool getTextureAndColor(const MFnDependencyNode& node, const MString& name, std::shared_ptr<kml::Texture>& tex, MColor& color)
 {
     color = MColor(1.0, 1.0, 1.0, 1.0);
@@ -1669,68 +1707,70 @@ static bool getTextureAndColor(const MFnDependencyNode& node, const MString& nam
             MPlug texturePlug = texNode.findPlug("fileTextureName", &status);
             if (status == MS::kSuccess)
             {
-                tex = std::shared_ptr<kml::Texture>(new kml::Texture);
                 MString tpath;
                 texturePlug.getValue(tpath);
                 std::string texpath = tpath.asChar();
 
-                // project path delimitor
-                const std::string pathDelimiter = "//";
-                size_t delim = texpath.find(pathDelimiter);
-                if (delim != std::string::npos)
+                texpath = GetTexturePath(texpath);
+                if (!texpath.empty())
                 {
-                    texpath.erase(0, delim + pathDelimiter.size());
+                    tex = std::shared_ptr<kml::Texture>(new kml::Texture);
+                    tex->SetFilePath(texpath);
+
+                    // filter
+                    const int filterType = texNode.findPlug("filter").asInt();
+                    if (filterType == 0)
+                    { // None
+                        tex->SetFilter(kml::Texture::FILTER_NEAREST);
+                    }
+                    else
+                    { // Linear
+                        tex->SetFilter(kml::Texture::FILTER_LINEAR);
+                    }
+
+                    // repeart
+                    const float repeatU = texNode.findPlug("repeatU").asFloat();
+                    const float repeatV = texNode.findPlug("repeatV").asFloat();
+                    tex->SetRepeat(repeatU, repeatV);
+
+                    // offset
+                    const float offsetU = texNode.findPlug("offsetU").asFloat();
+                    const float offsetV = texNode.findPlug("offsetV").asFloat();
+                    tex->SetRepeat(offsetU, offsetV);
+
+                    // wrap
+                    const bool wrapU = texNode.findPlug("wrapU").asBool();
+                    const bool wrapV = texNode.findPlug("wrapV").asBool();
+                    tex->SetWrap(wrapU, wrapV);
+
+                    // UDIM
+                    const int tilingMode = texNode.findPlug("uvTilingMode").asInt();
+                    if (tilingMode == 0)
+                    { // OFF
+                        tex->SetUDIMMode(false);
+                    }
+                    else if (tilingMode == 3)
+                    { // UDIM
+                        tex->SetUDIMMode(true);
+
+                        // get <UDIM> tag filepath
+                        MPlug compNamePlug = texNode.findPlug("computedFileTextureNamePattern", &status);
+                        MString ctpath;
+                        compNamePlug.getValue(ctpath);
+                        std::string ctexpath = ctpath.asChar();
+                        tex->SetUDIMFilePath(ctexpath);
+                    }
+                    else
+                    { // Not Support
+                        fprintf(stderr, "Error: Not support texture tiling mode.\n");
+                    }
+                    // if material has texture, set color(1,1,1)
+                    color.r = 1.0f;
+                    color.g = 1.0f;
+                    color.b = 1.0f;
+                    return true;
                 }
-                tex->SetFilePath(texpath);
-
-                // filter
-                const int filterType = texNode.findPlug("filter").asInt();
-                if (filterType == 0)
-                { // None
-                    tex->SetFilter(kml::Texture::FILTER_NEAREST);
-                }
-                else
-                { // Linear
-                    tex->SetFilter(kml::Texture::FILTER_LINEAR);
-                }
-
-                // repeart
-                const float repeatU = texNode.findPlug("repeatU").asFloat();
-                const float repeatV = texNode.findPlug("repeatV").asFloat();
-                tex->SetRepeat(repeatU, repeatV);
-
-                // offset
-                const float offsetU = texNode.findPlug("offsetU").asFloat();
-                const float offsetV = texNode.findPlug("offsetV").asFloat();
-                tex->SetRepeat(offsetU, offsetV);
-
-                // wrap
-                const bool wrapU = texNode.findPlug("wrapU").asBool();
-                const bool wrapV = texNode.findPlug("wrapV").asBool();
-                tex->SetWrap(wrapU, wrapV);
-
-                // UDIM
-                const int tilingMode = texNode.findPlug("uvTilingMode").asInt();
-                if (tilingMode == 0)
-                { // OFF
-                    tex->SetUDIMMode(false);
-                }
-                else if (tilingMode == 3)
-                { // UDIM
-                    tex->SetUDIMMode(true);
-
-                    // get <UDIM> tag filepath
-                    MPlug compNamePlug = texNode.findPlug("computedFileTextureNamePattern", &status);
-                    MString ctpath;
-                    compNamePlug.getValue(ctpath);
-                    std::string ctexpath = ctpath.asChar();
-                    tex->SetUDIMFilePath(ctexpath);
-                }
-                else
-                { // Not Support
-                    fprintf(stderr, "Error: Not support texture tiling mode.\n");
-                }
-
+                
                 // Colorspace
                 MPlug colorSpacePlug = texNode.findPlug("colorSpace");
                 MString colorSpaceStr;
@@ -1942,7 +1982,6 @@ static bool storeAiStandardSurfaceShader(std::shared_ptr<kml::Material> mat, con
             mat->SetTexture("ai_specularColor", specularTex);
         }
     }
-
     mat->SetFloat("ai_specularWeight", specularWeight);
     mat->SetFloat("ai_specularColorR", specularColorR);
     mat->SetFloat("ai_specularColorG", specularColorG);
@@ -2888,7 +2927,13 @@ static MStatus WriteGLTF(
             }
         }
     }
-
+    if (!recalc_normals)
+    {
+        if (!kml::CalculateNormalsMesh(node->GetMesh()))
+        {
+            return MS::kFailure;
+        }
+    }
     if (!kml::TriangulateMesh(node->GetMesh()))
     {
         return MS::kFailure;
@@ -3153,49 +3198,6 @@ static std::shared_ptr<kml::Bound> ExpandBound(std::shared_ptr<kml::Node>& node)
     return node->GetBound();
 }
 
-static void AddChildUnique(std::shared_ptr<kml::Node>& parent, std::shared_ptr<kml::Node>& child)
-{
-    auto children = parent->GetChildren();
-    bool hasChild = false;
-    for (size_t i = 0; i < children.size(); i++)
-    {
-        if (children[i].get() == child.get())
-        {
-            hasChild = true;
-            break;
-        }
-    }
-    if (!hasChild)
-    {
-        parent->AddChild(child);
-    }
-}
-
-static void SetNode(std::map<std::string, std::shared_ptr<kml::Node> >& pathMap, const std::string& path, const std::shared_ptr<kml::Node>& node)
-{
-    typedef std::map<std::string, std::shared_ptr<kml::Node> > PathMap;
-    typedef PathMap::iterator iterator;
-    //pathMap[path] = node;
-    iterator it = pathMap.find(path);
-    if (it == pathMap.end())
-    {
-        pathMap[path] = node;
-    }
-    else
-    {
-        const std::shared_ptr<kml::Node>& a = it->second;
-        const std::shared_ptr<kml::Node>& b = node;
-
-        std::shared_ptr<kml::Mesh> amesh = a->GetMesh();
-        std::shared_ptr<kml::Mesh> bmesh = b->GetMesh();
-
-        if (!amesh.get() && bmesh.get())
-        {
-            pathMap[path] = node;
-        }
-    }
-}
-
 static void GetAllNodes(std::vector<std::shared_ptr<kml::Node> >& nodes, const std::shared_ptr<kml::Node>& node)
 {
     if (node->GetChildren().size() > 0)
@@ -3210,90 +3212,157 @@ static void GetAllNodes(std::vector<std::shared_ptr<kml::Node> >& nodes, const s
     }
 }
 
+static std::vector<std::shared_ptr<kml::Node> > UniqueNodes(const std::vector<std::shared_ptr<kml::Node> >& nodes)
+{
+    typedef std::map<std::string, std::shared_ptr<kml::Node> > PathMapType;
+    PathMapType pathMap;
+    for (size_t i = 0; i < nodes.size(); i++)
+    {
+        std::string path = nodes[i]->GetPath();
+        PathMapType::iterator it = pathMap.find(path);
+        if (it == pathMap.end())
+        {
+            pathMap[path] = nodes[i];
+        }
+        else
+        {
+            std::shared_ptr<kml::Mesh> amesh = it->second->GetMesh();
+            std::shared_ptr<kml::Mesh> bmesh = nodes[i]->GetMesh();
+            if (!amesh.get() && bmesh.get())
+            {
+                pathMap[path] = nodes[i];
+            }
+        }
+    }
+    std::vector<std::shared_ptr<kml::Node> > ret;
+    for (PathMapType::const_iterator it = pathMap.begin(); it != pathMap.end(); it++)
+    {
+        ret.push_back(it->second);
+    }
+    return ret;
+}
+
+static std::shared_ptr<kml::Node> FindChild(const std::vector<std::shared_ptr<kml::Node> >& children, const std::string& name)
+{
+    for (size_t i = 0; i < children.size(); i++)
+    {
+        if (children[i]->GetName() == name)
+        {
+            return children[i];
+        }
+    }
+    return std::shared_ptr<kml::Node>();
+}
+
+static void SetParent(std::shared_ptr<kml::Node>& parent, const std::vector<std::string>& paths, const std::shared_ptr<kml::Node>& node)
+{
+    auto cFound = FindChild(parent->GetChildren(), paths.front());
+    if (cFound.get())
+    {
+        if (paths.size() == 1)
+        {
+            //ERROR
+            //MGlobal::displayInfo(MString("?ZZZZZ1:") + MString(cFound->GetName().c_str()));
+            //MGlobal::displayInfo(MString("?ZZZZZ2:") + MString(paths.front().c_str()));
+        }
+        else
+        {
+            std::vector<std::string> tpaths(std::next(paths.begin()), paths.end());
+            SetParent(cFound, tpaths, node);
+        }
+    }
+    else
+    {
+        if (paths.size() == 1)
+        {
+            parent->AddChild(node);
+        }
+        else
+        {
+            //ERROR
+            //MGlobal::displayInfo(MString("?YYYYY????????:") + MString(node->GetPath().c_str()));
+            //for (size_t k = 0; k < paths.size(); k++)
+            //{
+            //    MGlobal::displayInfo(MString("?YYYYY:") + MString(paths[k].c_str()));
+            //}
+        }
+    }
+}
+
 static std::shared_ptr<kml::Node> CombineNodes(const std::vector<std::shared_ptr<kml::Node> >& nodes)
 {
     std::shared_ptr<kml::Node> node(new kml::Node());
     node->GetTransform()->SetIdentity();
     node->SetVisiblity(true);
 
+    struct NodeStruct
     {
-        //Local space
-        typedef std::map<std::string, std::shared_ptr<kml::Node> > PathMap;
-        std::vector<PathMap> pathMapList;
-        std::vector<std::vector<std::string> > pathList;
-        for (size_t i = 0; i < nodes.size(); i++)
+        std::shared_ptr<kml::Node> node;
+        std::vector<std::string> paths;
+    };
+    struct NodeStructSorter
+    {
+        bool operator()(const NodeStruct& l, const NodeStruct& r) const
         {
-            auto& node = nodes[i];
-            std::string path = node->GetPath();
-            std::vector<std::string> pathvec = SplitPath(path, "|");
-            if (pathvec.front() == "")
+            if (l.paths.size() != r.paths.size())
             {
-                std::vector<std::string> tvec(std::next(pathvec.begin()), pathvec.end());
-                pathvec.swap(tvec);
+                return l.paths.size() < r.paths.size();
             }
-
-            pathList.push_back(pathvec);
-        }
-
-        for (size_t i = 0; i < pathList.size(); i++)
-        {
-            const auto& pathvec = pathList[i];
-            int sz = pathvec.size();
-
-            for (size_t j = 0; j < pathvec.size(); j++)
+            else
             {
-                if (pathMapList.size() <= j)
+                size_t sz = std::min<size_t>(l.paths.size(), r.paths.size());
+                for (size_t i = 0; i < sz; i++)
                 {
-                    pathMapList.push_back(PathMap());
+                    std::string ls = l.paths[i];
+                    std::string rs = r.paths[i];
+                    if (ls != rs)
+                    {
+                        return std::lexicographical_compare(ls.begin(), ls.end(), rs.begin(), rs.end());
+                    }
                 }
             }
-
-            SetNode(pathMapList[sz - 1], pathvec[sz - 1], nodes[i]);
+            return false;
         }
+    };
 
-        for (size_t i = 0; i < pathList.size(); i++)
+    std::vector<NodeStruct> sortNodes;
+    for (size_t i = 0; i < nodes.size(); i++)
+    {
+        NodeStruct s;
+        auto& node = nodes[i];
+        std::string path = node->GetPath();
+        std::vector<std::string> paths = SplitPath(path, "|");
+        if (paths.front() == "")
         {
-            const auto& pathvec = pathList[i];
-            for (size_t j = 0; j < pathvec.size(); j++)
-            {
-                auto iter = pathMapList[j].find(pathvec[j]);
-                if (iter == pathMapList[j].end())
-                {
-                    pathMapList[j][pathvec[j]] = std::shared_ptr<kml::Node>(new kml::Node());
-                }
-            }
+            std::vector<std::string> tpaths(std::next(paths.begin()), paths.end());
+            paths.swap(tpaths);
         }
+        s.node = node;
+        s.paths = paths;
+        //if (node->GetName() != paths.back())
+        //{
+        //    MGlobal::displayInfo(MString("?KKKKK1????????:") + MString(node->GetName().c_str()));
+        //    MGlobal::displayInfo(MString("?KKKKK2????????:") + MString(paths.back().c_str()));
+        //}
 
-        for (size_t i = 0; i < pathList.size(); i++)
-        {
-            const auto& pathvec = pathList[i];
-            int sz = pathvec.size();
-            for (int j = 0; j < sz; j++)
-            {
-                pathMapList[j][pathvec[j]]->ClearChildren();
-            }
-        }
+        //IMPORTANT!!!
+        node->SetName(paths.back());
 
-        for (size_t i = 0; i < pathList.size(); i++)
-        {
-            const auto& pathvec = pathList[i];
-            int sz = pathvec.size();
-            for (int j = 1; j < sz; j++)
-            {
-                AddChildUnique(pathMapList[j - 1][pathvec[j - 1]], pathMapList[j][pathvec[j]]);
-            }
-        }
+        sortNodes.push_back(s);
+    }
+    std::sort(sortNodes.begin(), sortNodes.end(), NodeStructSorter());
 
-        {
-            PathMap& m = pathMapList[0];
-            for (PathMap::iterator it = m.begin(); it != m.end(); it++)
-            {
-                node->AddChild(it->second);
-            }
-        }
-        ExpandBound(node);
+    // for (size_t i = 0; i < sortNodes.size(); i++)
+    //{
+    //    MGlobal::displayInfo(MString("?MMMMM????????:") + MString(sortNodes[i].node->GetPath().c_str()));
+    //}
+
+    for (size_t i = 0; i < sortNodes.size(); i++)
+    {
+        SetParent(node, sortNodes[i].paths, sortNodes[i].node);
     }
 
+    ExpandBound(node);
     return node;
 }
 
@@ -4434,7 +4503,8 @@ static std::vector<std::shared_ptr<kml::Skin> > GetSkins(const std::shared_ptr<k
 
     std::vector<std::shared_ptr<kml::Node> > jointNodes;
     GetTransformNodes(jointNodes, node);
-    std::map<std::string, std::shared_ptr<kml::Node> > jointMap;
+    typedef std::map<std::string, std::shared_ptr<kml::Node> > JointMapType;
+    JointMapType jointMap;
     for (size_t i = 0; i < jointNodes.size(); i++)
     {
         jointMap[jointNodes[i]->GetPath()] = jointNodes[i];
@@ -4465,7 +4535,12 @@ static std::vector<std::shared_ptr<kml::Skin> > GetSkins(const std::shared_ptr<k
         JointSetType jointSet;
         for (SkinMapType::iterator it = skinMap.begin(); it != skinMap.end(); it++)
         {
-            jointSet.insert(jointMap[it->first]);
+            std::string jointName = it->first;
+            JointMapType::const_iterator jit = jointMap.find(jointName);
+            if (jit != jointMap.end() && jit->second.get())
+            {
+                jointSet.insert(jit->second);
+            }
         }
         JointSetType jointSet2 = jointSet;
         for (JointSetType::iterator it = jointSet2.begin(); it != jointSet2.end(); it++)
@@ -4769,6 +4844,19 @@ MStatus glTFExporter::exportProcess(const MString& fname, const std::vector<MDag
                     std::string file_path = dir_path + "/" + tex->GetFilePath();
                     tex->SetFileExists(IsFileExist(file_path));
                 }
+            }
+        }
+
+        {
+            std::vector<std::shared_ptr<kml::Node> > tnodes;
+            for (size_t i = 0; i < nodes.size(); i++)
+            {
+                GetAllNodes(tnodes, nodes[i]);
+            }
+            nodes = UniqueNodes(tnodes);
+            for (size_t i = 0; i < nodes.size(); i++)
+            {
+                nodes[i]->ClearChildren();
             }
         }
 

@@ -969,6 +969,7 @@ namespace kml
                             typedef WeightVertex::const_iterator WeightIterator;
                             std::vector<unsigned short> joints;
                             std::vector<float> weights;
+                            bool Fauire = false;
                             for (int i = 0; i < in_skin->weights.size(); i++)
                             {
                                 std::vector<std::pair<int, float> > ww;
@@ -977,10 +978,33 @@ namespace kml
                                 {
                                     std::string path = it->first;
                                     float weight = it->second;
-                                    auto nn = nodeMap_[path];
-                                    auto jj = nn->GetJoint();
-                                    int index = std::max<int>(0, jj->GetIndexInSkin());
-                                    ww.push_back(std::make_pair(index, weight));
+                                    auto iter = nodeMap_.find(path);
+                                    if (iter != nodeMap_.end())
+                                    {
+                                        auto nn = iter->second;
+                                        auto jj = nn->GetJoint();
+                                        if(jj.get())
+                                        {
+                                            int index = jj->GetIndexInSkin();
+                                            if(index >= 0)
+                                            {
+                                                ww.push_back(std::make_pair(index, weight));
+                                            }
+                                        }
+                                        else
+                                        {
+                                            //std::cout << "XXX:" << path << std::endl;
+                                        }
+                                    }
+                                }
+                                if(Fauire)
+                                {
+                                    typedef std::map<std::string, std::shared_ptr<Node> > MapType;
+                                    typedef MapType::const_iterator Iterator;
+                                    //for(Iterator it = nodeMap_.begin();it != nodeMap_.end();it++)
+                                    //{
+                                    //    std::cout << "???:" << it->first << std::endl;
+                                    //}
                                 }
                                 std::sort(ww.begin(), ww.end(), WeightSorter());
                                 unsigned short jx[4] = {};
@@ -1376,6 +1400,7 @@ namespace kml
             return false;
         }
 
+#ifdef ENABLE_LTE_PBR_MATERIAL
         static picojson::value createLTE_pbr_material(const std::shared_ptr<kml::Material> mat, const std::vector<std::shared_ptr<kml::Texture> >& texture_vec)
         {
             picojson::object LTE_pbr_material;
@@ -1690,6 +1715,7 @@ namespace kml
 
             return picojson::value(extensions);
         }
+#endif // ENABLE_LTE_PBR_MATERIAL
 
         static picojson::array GetMatrixAsArray(const glm::mat4& mat)
         {
@@ -2015,7 +2041,7 @@ namespace kml
                     {
                         nd["byteOffset"] = picojson::value((double)accessor->GetByteOffset());
                     }
-                    //nd["byteStride"] = accessor->Get("byteStride");
+                    //nd["byteStride"] = picojson::value((double)accessor->GetByteStride()); // old spec
                     nd["componentType"] = picojson::value((double)accessor->GetComponentType());
                     nd["count"] = picojson::value((double)accessor->GetCount());
                     nd["type"] = picojson::value(accessor->GetType());
@@ -2029,6 +2055,12 @@ namespace kml
                     {
                         nd["max"] = picojson::value(ConvertToArray(max_));
                     }
+
+                    // Now omitt set byteStride
+                    /*if (accessor->GetType() != "SCALAR") { // if not INDEX buffer
+						bufferView->SetByteStride(accessor->GetByteStride());
+					}*/
+
                     ar.push_back(picojson::value(nd));
                 }
                 root["accessors"] = picojson::value(ar);
@@ -2046,6 +2078,10 @@ namespace kml
                     nd["buffer"] = picojson::value((double)bufferView->GetBuffer()->GetIndex());
                     nd["byteOffset"] = picojson::value((double)bufferView->GetByteOffset());
                     nd["byteLength"] = picojson::value((double)bufferView->GetByteLength());
+                    if (bufferView->GetByteStride() != 0)
+                    {
+                        nd["byteStride"] = picojson::value((double)bufferView->GetByteStride());
+                    }
                     int nBufferView = bufferView->GetTarget();
                     if (nBufferView >= 0)
                     {
@@ -2324,8 +2360,10 @@ namespace kml
                     nd["pbrMetallicRoughness"] = picojson::value(pbrMetallicRoughness);
                     nd["doubleSided"] = picojson::value(bool(mat->GetInteger("doubleSided")));
 
+#ifdef ENABLE_LTE_PBR_MATERIAL
                     // LTE extenstion
                     nd["extensions"] = createLTE_material_extensions(mat, texture_vec);
+#endif
 
                     ar.push_back(picojson::value(nd));
                 }
@@ -2366,7 +2404,7 @@ namespace kml
             return -1;
         }
 
-        static int FindVRNJointIndex(const std::vector<std::string>& joint_names, const std::string& key)
+        static int FindVRMJointIndex(const std::vector<std::string>& joint_names, const std::string& key)
         {
             static const JointMap JointMaps[] = {
                 {"hips", {"hip", "pelvis", NULL, NULL, NULL}},
@@ -2438,8 +2476,8 @@ namespace kml
 
                 {NULL, {NULL, NULL, NULL, NULL, NULL}}};
 
-            static const PCTR LeftKeys[] = {"l_", "left", NULL};
-            static const PCTR RightKeys[] = {"r_", "right", NULL};
+            static const PCTR LeftKeys[] = {"left", "_l", NULL};
+            static const PCTR RightKeys[] = {"right", "_r", NULL};
 
             int key_index = FindJointKeyIndex(JointMaps, key.c_str());
             const PCTR* subStrs = JointMaps[key_index].szSubStrs;
@@ -2648,7 +2686,7 @@ namespace kml
 
                 for (int i = 0; i < sizeof(boneNames) / sizeof(const char*); ++i)
                 {
-                    int idx = FindVRNJointIndex(joint_names, boneNames[i]);
+                    int idx = FindVRMJointIndex(joint_names, boneNames[i]);
                     if (idx >= 0)
                     {
                         picojson::object info;
@@ -2658,6 +2696,7 @@ namespace kml
                         humanBones.push_back(picojson::value(info));
                     }
                 }
+
                 humanoid["humanBones"] = picojson::value(humanBones);
                 /*
                 "armStretch": 0.05,
@@ -2683,7 +2722,7 @@ namespace kml
 
             {*/
                 picojson::object firstPerson;
-                firstPerson["firstPersonBone"] = picojson::value((double)FindVRNJointIndex(joint_names, "head")); //picojson::value(-1.0);
+                firstPerson["firstPersonBone"] = picojson::value((double)FindVRMJointIndex(joint_names, "head")); //picojson::value(-1.0);
                 picojson::object firstPersonBoneOffset;
                 firstPersonBoneOffset["x"] = picojson::value(0.0);
                 firstPersonBoneOffset["y"] = picojson::value(0.0); //head->GetGlobalMatrix()[3][1];
@@ -2936,10 +2975,12 @@ namespace kml
                 extensionsUsed.push_back(picojson::value("VRM"));
             }
 
+#ifdef ENABLE_LTE_PBR_MATERIAL
             // LTE extention
             extensionsUsed.push_back(picojson::value("LTE_PBR_material"));
             extensionsUsed.push_back(picojson::value("LTE_aiStandardHair_material"));
             extensionsUsed.push_back(picojson::value("LTE_UDIM_texture"));
+#endif
 
             if (!extensionsUsed.empty())
             {
